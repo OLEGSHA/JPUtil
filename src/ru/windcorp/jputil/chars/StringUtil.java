@@ -296,6 +296,51 @@ public class StringUtil {
 		return result;
 	}
 	
+	public static int count(String src, CharPredicate test) {
+		int i = 0;
+		for (char c : src.toCharArray()) {
+			if (test.test(c)) i++;
+		}
+		
+		return i;
+	}
+	
+	public static String[] split(String src, CharPredicate test) {
+		return split(src, count(src, test) + 1, test);
+	}
+	
+	public static String[] split(String src, int arrayLength, CharPredicate test) {
+		if (arrayLength < 0) {
+			throw new IllegalArgumentException("arrayLength must be non-negative (" + arrayLength + ")");
+		} else if (arrayLength == 0) {
+			return new String[0];
+		} else if (arrayLength == 1) {
+			return new String[] { src };
+		}
+		
+		String[] result = new String[arrayLength];
+		
+		int resultIndex = 0;
+		StringBuilder sb = new StringBuilder();
+		
+		charloop:
+		for (char c : src.toCharArray()) {
+			if ((resultIndex + 1) < arrayLength) {
+				if (test.test(c)) {
+					result[resultIndex] = resetStringBuilder(sb);
+					++resultIndex;
+					continue charloop;
+				}
+			}
+			
+			sb.append(c);
+		}
+		
+		result[resultIndex] = sb.toString();
+		
+		return result;
+	}
+	
 	public static String remove(String src, char... remove) {
 		char[] result = new char[src.length() - count(src, remove)];
 		

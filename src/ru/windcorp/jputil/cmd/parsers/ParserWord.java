@@ -36,9 +36,9 @@ import java.util.function.Supplier;
 
 import ru.windcorp.jputil.cmd.Invocation;
 
-public class ParserInt extends Parser {
+public class ParserWord extends Parser {
 
-	public ParserInt(String id) {
+	public ParserWord(String id) {
 		super(id);
 	}
 
@@ -47,12 +47,8 @@ public class ParserInt extends Parser {
 	 */
 	@Override
 	public Supplier<Exception> getProblem(CharacterIterator data, Invocation inv) {
-		char[] chars = nextWord(data);
-		if (!isInt(chars)) {
-			return () -> {
-				return new NumberFormatException(inv.getContext().translate("auto.int.notInt", "\"%1$s\" is not an int", new String(chars)));
-			};
-		} else return null;
+		nextWord(data);
+		return argNotFound(inv);
 	}
 
 	/**
@@ -60,38 +56,7 @@ public class ParserInt extends Parser {
 	 */
 	@Override
 	public boolean matches(CharacterIterator data) {
-		return isInt(nextWord(data));
-	}
-	
-	private static boolean isInt(char[] chars) {
-		long result = 0;
-		boolean isPositive = true;
-		
-		if (chars.length == 0) {
-			return false;
-		}
-		
-		int i = 0;
-		if (chars[0] == '-') {
-			isPositive = false;
-			i++;
-		} else if (chars[0] == '+') {
-			i++;
-		}
-		
-		for (; i < chars.length; ++i) {
-			if (chars[i] < '0' || chars[i] > '9') {
-				return false;
-			}
-			result = result * 10 + (chars[i] - '0');
-			if (isPositive) {
-				if (result > Integer.MAX_VALUE) return false;
-			} else {
-				if (-result < Integer.MIN_VALUE) return false;
-			}
-		}
-		
-		return true;
+		return nextWord(data).length != 0;
 	}
 
 	/**
@@ -99,20 +64,7 @@ public class ParserInt extends Parser {
 	 */
 	@Override
 	public void parse(CharacterIterator data, Consumer<Object> output) {
-		char[] chars = nextWord(data);
-		
-		int result = 0;
-		int i = 0;
-		
-		if (chars[0] == '-') {
-			for (i = 1; i < chars.length; ++i) result = result * 10 - (chars[i] - '0');
-		} else {
-			if (chars[0] == '+') i++;
-			for (; i < chars.length; ++i) result = result * 10 + (chars[i] - '0');
-		}
-		
-		
-		output.accept(result);
+		output.accept(new String(nextWord(data)));
 		return;
 	}
 
@@ -121,7 +73,7 @@ public class ParserInt extends Parser {
 	 */
 	@Override
 	public void insertArgumentClasses(Consumer<Class<?>> output) {
-		output.accept(Integer.TYPE);
+		output.accept(String.class);
 	}
 
 }

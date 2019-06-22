@@ -30,65 +30,16 @@
  */
 package ru.windcorp.jputil.cmd;
 
-import java.util.Objects;
-import java.util.function.Supplier;
+public class CommandErrorException extends CommandExceptions {
 
-public abstract class Command {
-	
-	private final String[] names;
-	private final String syntax;
-	private final String desc;
-	
-	protected Command(String[] names, String syntax, String desc) {
-		Objects.requireNonNull(names, "names cannot be null");
-		Objects.requireNonNull(desc, "desc cannot be null");
-		
-		if (names.length == 0) {
-			throw new IllegalArgumentException("names cannot be empty");
-		}
-		
-		this.names = names;
-		this.syntax = syntax == null ? "" : syntax;
-		this.desc = desc;
+	private static final long serialVersionUID = 8198945707905799482L;
+
+	public CommandErrorException(Invocation inv, String message) {
+		super(inv, message);
 	}
-	
-	public abstract void run(Invocation inv) throws CommandExceptions;
-	
-	public Supplier<? extends CommandExceptions> canRun(CommandRunner runner) {
-		return null;//TODO add CommandRunner filter or smth
+
+	public CommandErrorException(Invocation inv, String message, Throwable cause) {
+		super(inv, message, cause);
 	}
-	
-	public String getName() {
-		return names[0];
-	}
-	
-	/**
-	 * @return the names
-	 */
-	public String[] getNames() {
-		return names;
-	}
-	
-	/**
-	 * @return the syntax
-	 */
-	public String getSyntax() {
-		return syntax;
-	}
-	
-	/**
-	 * @return the description
-	 */
-	public String getDescription() {
-		return desc;
-	}
-	
-	/**
-	 * @see java.lang.Object#toString()
-	 */
-	@Override
-	public String toString() {
-		return  getName();
-	}
-	
+
 }

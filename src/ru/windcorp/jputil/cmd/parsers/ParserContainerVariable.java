@@ -173,12 +173,7 @@ public class ParserContainerVariable extends Parser {
 		for (int i = 0; i < items.length; ++i) {
 			Parser item = items[i];
 			
-			if (
-					item instanceof ParserContainerOptional ||
-					item instanceof ParserLiteral ||
-					item instanceof ParserTrailingSpecific ||
-					item instanceof ParserTrailingString ||
-					item instanceof ParserContainerGroup) {
+			if (item instanceof NoBrackets || item instanceof ParserContainerGroup) {
 				item.toSyntax(sb, formatter);
 			} else {
 				formatter.appendStructureChar(sb, '<');

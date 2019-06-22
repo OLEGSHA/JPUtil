@@ -39,7 +39,48 @@ import java.util.function.Function;
 
 public class Context {
 	
-	private final CommandRegistry globals = new CommandRegistry("__GLOBALS", "Global commands");
+	private final CommandRegistry globals = new CommandRegistry("__GLOBALS", "Global commands") {
+		/**
+		 * @see ru.windcorp.jputil.cmd.CommandRegistry#contains(java.lang.String)
+		 */
+		@Override
+		public synchronized boolean contains(String name) {
+			name = name.toLowerCase();
+			
+			Command helpCommand = getHelpCommand();
+			if (helpCommand != null) {
+				for (String helpName : helpCommand.getNames()) {
+					if (helpName.toLowerCase().equals(name)) {
+						return true;
+					}
+				}
+			}
+			
+			return super.contains(name);
+		}
+		
+		/**
+		 * @see ru.windcorp.jputil.cmd.CommandRegistry#runCommand(ru.windcorp.jputil.cmd.CommandRegistry, ru.windcorp.jputil.cmd.Invocation, java.lang.String, java.lang.String)
+		 */
+		@Override
+		protected synchronized void runCommand(CommandRegistry parent, Invocation inv, String name, String args)
+				throws CommandExceptions {
+			name = name.toLowerCase();
+			
+			Command helpCommand = getHelpCommand();
+			if (helpCommand != null) {
+				for (String helpName : helpCommand.getNames()) {
+					if (helpName.toLowerCase().equals(name)) {
+						helpCommand.run(inv.nextCall(parent, helpCommand, args));
+					}
+				}
+			}
+			
+			super.runCommand(parent, inv, name, args);
+		}
+	};
+	
+	private Command helpCommand;
 	private final Map<Class<? extends CommandExceptions>, Consumer<? extends CommandExceptions>> exceptionHandlers = new WeakHashMap<>();
 	private BiConsumer<Invocation, Exception> fallbackExceptionHandler;
 	private Function<String, String> translator = null;
@@ -119,8 +160,89 @@ public class Context {
 		return translator;
 	}
 
+	/**
+	 * Sets the translator function for this context. Function should return <code>null</code> for unknown keys.
+	 * <p>
+	 * <b>Currently known keys</b>
+	 * <table border="1">
+	 * <tr>
+	 * <th align="center"><code>key</code></th>
+	 * <th align="center"><code>def</code></th>
+	 * <th align="center">Description</th>
+	 * <th align="center"><code>args</code></th>
+	 * </tr>
+	 * 
+	 * <tr><td><code>auto.generic.argNotFound</code></td>
+	 * <td><code>Argument %1$s not found</code></td>
+	 * <td>A <code>Parser</code> failed to find itself</td>
+	 * <td>1: argument name (Parser ID)</td></tr>
+	 * 
+	 * <tr><td><code>auto.literal.doesNotMatch</code></td>
+	 * <td><code>\"%2$s\" expected, \"%1$s\" encountered</code></td>
+	 * <td>Argument did not match a <code>ParserLiteral</code></td>
+	 * <td>1: argument, 2: template</td></tr>
+	 * 
+	 * <tr><td><code>auto.int.notInt</code></td>
+	 * <td><code>\"%1$s\" is not an int</code></td>
+	 * <td><code>ParserInt</code> failed to parse int</td>
+	 * <td>1: input</td></tr>
+	 * 
+	 * <tr><td><code>auto.end.excessive</code></td>
+	 * <td><code>Excessive arguments \"%1$s\"</code></td>
+	 * <td><code>ParserEnd</code> encountered arguments</td>
+	 * <td>1: arguments</td></tr>
+	 * 
+	 * <tr><td><code>help.list.header</code></td>
+	 * <td><code>Command %1$s has %2$d subcmd:</code></td>
+	 * <td>Help header when listing all subcmds</td>
+	 * <td>1: command name, 2: (int) subcmd count</td></tr>
+	 * 
+	 * <tr><td><code>help.list.header.empty</code></td>
+	 * <td><code>Command %1$s does not have available subcommands</code></td>
+	 * <td>Help header when listing all subcmds but none apply</td>
+	 * <td>1: command name</td></tr>
+	 * 
+	 * <tr><td><code>help.search.header</code></td>
+	 * <td><code>Search matched %2$d subcommands:</code></td>
+	 * <td>Help header when searching for subcmds</td>
+	 * <td>1: command name, 2: (int) subcmd count</td></tr>
+	 * 
+	 * <tr><td><code>help.search.header.empty</code></td>
+	 * <td><code>Command %1$s does not have matching subcommands</code></td>
+	 * <td>Help header when searching for subcmds but none match</td>
+	 * <td>1: command name</td></tr>
+	 * 
+	 * <tr><td><code>help.entry</code></td>
+	 * <td><code>- %1$s %2$s - %3$s</code></td>
+	 * <td>Help subcmd entry</td>
+	 * <td>1: subcmd name, 2: subcmd syntax, 3: subcmd description, 4: (int) index</td></tr>
+	 * </table>
+	 * @param translator the translator function or <code>null</code>
+	 */
 	public void setTranslator(Function<String, String> translator) {
 		this.translator = translator;
+	}
+	
+	public String translate(String key, String def) {
+		if (getTranslator() == null) {
+			return def;
+		}
+		
+		String result = getTranslator().apply(key);
+		
+		return result == null ? def : result;
+	}
+	
+	public String translate(String key, String def, Object... args) {
+		return String.format(translate(key, def), args);
+	}
+
+	public Command getHelpCommand() {
+		return helpCommand;
+	}
+
+	public void setHelpCommand(Command helpCommand) {
+		this.helpCommand = helpCommand;
 	}
 
 }

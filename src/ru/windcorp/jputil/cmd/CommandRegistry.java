@@ -30,9 +30,11 @@
  */
 package ru.windcorp.jputil.cmd;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -63,7 +65,8 @@ public class CommandRegistry extends Command {
 		String args = inv.getArgs();
 		
 		if (args.isEmpty()) {
-			// TODO show help
+			Command help = inv.getContext().getHelpCommand();
+			help.run(inv.nextCall(this, help, ""));
 			return;
 		}
 		
@@ -91,27 +94,27 @@ public class CommandRegistry extends Command {
 			}
 		}
 		
-		CommandRegistry globals = inv.getContext().getGlobals();
-		if (globals != this) {
-			synchronized (globals) {
-				if (globals.contains(name)) {
-					globals.run(this, inv, name, subArgs);
-					return;
+		if (contains(name)) {
+			runCommand(this, inv, name, subArgs);
+		} else {
+			CommandRegistry globals = inv.getContext().getGlobals();// TODO add help command VIA GLOBALS
+			if (globals != this) {
+				synchronized (globals) {
+					if (globals.contains(name)) {
+						globals.runCommand(this, inv, name, subArgs);
+						return;
+					}
 				}
 			}
-		}
-		
-		run(this, inv, name, subArgs);
-	}
-	
-	protected synchronized void run(CommandRegistry parent, Invocation inv, String name, String args) throws CommandExceptions {
-		Command subCmd = commandMap.get(name);
-		
-		if (subCmd == null) {
+			
 			throw new CommandNotFoundException(inv, name);
 		}
+	}
+	
+	protected synchronized void runCommand(CommandRegistry parent, Invocation inv, String name, String args) throws CommandExceptions {
+		Command subCmd = commandMap.get(name);
 		
-		Supplier<? extends CommandExceptions> supplier = subCmd.canRun(inv);
+		Supplier<? extends CommandExceptions> supplier = subCmd.canRun(inv.getRunner());
 		if (supplier != null) {
 			throw supplier.get();
 		}
@@ -130,25 +133,39 @@ public class CommandRegistry extends Command {
 		
 		String[] names = cmd.getNames();
 		for (int i = 0; i < names.length; ++i) {
-			Command aliasDuplicate = commandMap.put(names[i], cmd);
+			String name = names[i].toLowerCase();
+			
+			Command aliasDuplicate = commandMap.put(name, cmd);
 			if (aliasDuplicate != null) {
 				
 				commands.remove(cmd);
 				for (int j = 0; j < i; ++j) {
-					commandMap.remove(names[j]);
+					commandMap.remove(names[j].toLowerCase());
 				}
 				
-				throw new IllegalArgumentException("Duplicate name " + names[i] + " for commands " + cmd + " and " + aliasDuplicate);
+				throw new IllegalArgumentException("Duplicate name " + name + " for commands " + cmd + " and " + aliasDuplicate);
 			}
 		}
 	}
 	
 	public synchronized boolean contains(String name) {
-		return commandMap.containsKey(name);
+		return commandMap.containsKey(name.toLowerCase());
 	}
 	
 	public SortedSet<Command> getCommands() {
 		return commandsReadOnly;
+	}
+	
+	public synchronized List<Command> getCommands(CommandRunner runner) {
+		List<Command> commands = new ArrayList<>();
+			
+		for (Command c : commands) {
+			if (c.canRun(runner) == null) {
+				commands.add(c);
+			}
+		}
+		
+		return commands;
 	}
 
 }

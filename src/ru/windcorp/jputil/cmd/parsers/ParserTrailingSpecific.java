@@ -40,8 +40,9 @@ import java.util.function.Supplier;
 
 import ru.windcorp.jputil.chars.IndentedStringBuilder;
 import ru.windcorp.jputil.cmd.Invocation;
+import ru.windcorp.jputil.cmd.parsers.Parser.NoBrackets;
 
-public class ParserTrailingSpecific extends Parser {
+public class ParserTrailingSpecific extends Parser implements NoBrackets {
 	
 	private static final CharacterIterator EXHAUSTED_CHARACTER_ITERATOR = new StringCharacterIterator("");
 	
@@ -187,11 +188,7 @@ public class ParserTrailingSpecific extends Parser {
 	 */
 	@Override
 	protected void toSyntax(StringBuilder sb, SyntaxFormatter formatter) {
-		if (
-				parser instanceof ParserContainerOptional ||
-				parser instanceof ParserLiteral ||
-				parser instanceof ParserTrailingSpecific ||
-				parser instanceof ParserTrailingString) {
+		if (parser instanceof NoBrackets) {
 			parser.toSyntax(sb, formatter);
 		} else {
 			formatter.appendStructureChar(sb, '<');

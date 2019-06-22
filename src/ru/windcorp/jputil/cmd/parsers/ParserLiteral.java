@@ -1,19 +1,6 @@
-/* 
+/*
  * JPUtil
  * Copyright (C) 2019  Javapony/OLEGSHA
- * 
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
-/**
- * Copyright (C) 2019 OLEGSHA
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,41 +18,43 @@
 package ru.windcorp.jputil.cmd.parsers;
 
 import java.text.CharacterIterator;
+import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import ru.windcorp.jputil.chars.IndentedStringBuilder;
 import ru.windcorp.jputil.cmd.CommandSyntaxException;
 import ru.windcorp.jputil.cmd.Invocation;
+import ru.windcorp.jputil.cmd.parsers.Parser.NoBrackets;
 
-public class ParserLiteral extends Parser {
+/**
+ * @author Javapony
+ *
+ */
+public class ParserLiteral extends Parser implements NoBrackets {
 	
-	private final Function<String, String> test;
-	private final String description;
+	private final String template;
+	private final char[] templateChars;
 
-	public ParserLiteral(String id, Function<String, String> test, String description) {
+	public ParserLiteral(String id, String template) {
 		super(id);
-		this.test = test;
-		this.description = description;
-	}
-	
-	public ParserLiteral(String id, Predicate<String> test, String msg, String description) {
-		this(id, input -> test.test(input) ? null : msg, description);
-	}
-	
-	public ParserLiteral(String id, String constant, String msg) {
-		this(id, constant::equalsIgnoreCase, msg, constant);
+		
+		if (Objects.requireNonNull(template, "template").isEmpty()) {
+			throw new IllegalArgumentException("Template is empty");
+		}
+
+		this.template = template;
+		this.templateChars = template.toCharArray();
 	}
 
 	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.tge2.util.ncmd.Invocation)
+	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.jputil.cmd.Invocation)
 	 */
 	@Override
 	public Supplier<Exception> getProblem(CharacterIterator data, Invocation inv) {
-		String token = String.valueOf(nextWord(data));
-		String msg = test.apply(token);
-		return () -> new CommandSyntaxException(inv, msg == null ? "" : msg); // TODO translate
+		String arg = String.valueOf(nextWord(data));
+		if (arg.length() == 0) return argNotFound(inv);
+		return () -> new CommandSyntaxException(inv, inv.getContext().translate("auto.literal.doesNotMatch", "\"%2$s\" expected, \"%1$s\" encountered", arg, template));
 	}
 
 	/**
@@ -73,8 +62,15 @@ public class ParserLiteral extends Parser {
 	 */
 	@Override
 	public boolean matches(CharacterIterator data) {
-		String token = String.valueOf(nextWord(data));
-		return test.apply(token) == null;
+		skipWhitespace(data);
+		
+		for (int i = 0; i < templateChars.length; ++i) {
+			if (data.next() != templateChars[i]) {
+				return false;
+			}
+		}
+		
+		return true;
 	}
 
 	/**
@@ -87,35 +83,17 @@ public class ParserLiteral extends Parser {
 			data.next();
 		// Output nothing
 	}
-	
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertEmpty(java.util.function.Consumer)
-	 */
-	@Override
-	public void insertEmpty(Consumer<Object> output) {
-		// Output nothing
-	}
 
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertArgumentClasses(java.util.function.Consumer)
 	 */
 	@Override
 	public void insertArgumentClasses(Consumer<Class<?>> output) {
-		// Do nothing
+		// Output nothing
 	}
-	
-	/**
-	 * @return the test
-	 */
-	public Function<String, String> getTest() {
-		return test;
-	}
-	
-	/**
-	 * @return the description
-	 */
-	public String getDescription() {
-		return description;
+
+	public String getTemplate() {
+		return template;
 	}
 	
 	/**
@@ -123,7 +101,17 @@ public class ParserLiteral extends Parser {
 	 */
 	@Override
 	public String toString() {
-		return "Literal \"" + getDescription() + "\"";
+		return toDebugString();
+	}
+	
+	/**
+	 * @see ru.windcorp.jputil.cmd.parsers.Parser#toDebugString(ru.windcorp.jputil.chars.IndentedStringBuilder)
+	 */
+	@Override
+	protected void toDebugString(IndentedStringBuilder sb) {
+		sb.append("\"");
+		sb.append(getTemplate());
+		sb.append("\"");
 	}
 	
 	/**
@@ -132,7 +120,7 @@ public class ParserLiteral extends Parser {
 	@Override
 	protected void toSyntax(StringBuilder sb, SyntaxFormatter formatter) {
 		formatter.appendStructureChar(sb, '"');
-		formatter.appendLiteral(sb, getDescription());
+		formatter.appendLiteral(sb, getTemplate());
 		formatter.appendStructureChar(sb, '"');
 	}
 

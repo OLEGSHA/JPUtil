@@ -36,8 +36,9 @@ import java.util.function.Supplier;
 
 import ru.windcorp.jputil.chars.IndentedStringBuilder;
 import ru.windcorp.jputil.cmd.Invocation;
+import ru.windcorp.jputil.cmd.parsers.Parser.NoBrackets;
 
-public class ParserContainerOptional extends Parser {
+public class ParserContainerOptional extends Parser implements NoBrackets {// TODO make several attempts to parse arguments when optional arguments exist (e.g. [arg1] <arg2> fails if only arg2 is present)
 	
 	private final Parser contents;
 

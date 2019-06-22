@@ -199,7 +199,7 @@ public class Escaper {
 		return result;
 	}
 	
-	protected int insertEscapeSequence(char c, char[] dest, int offset) {
+	public int insertEscapeSequence(char c, char[] dest, int offset) {
 		if (c == escapeChar) {
 			dest[  offset] = escapeChar;
 			dest[++offset] = escapeChar;
@@ -228,7 +228,11 @@ public class Escaper {
 		}
 	}
 	
-	public char[] unescape(CharacterIterator src, int length) throws EscapeException {
+	public int insertEscapeSequence(char c, char[] dest) {
+		return insertEscapeSequence(c, dest, 0);
+	}
+	
+	public char[] unescape(CharacterIterator src, int length, char until) throws EscapeException {
 		int end;
 		if (length < 0) {
 			end = src.getEndIndex();
@@ -241,7 +245,7 @@ public class Escaper {
 		int start = src.getIndex();
 		int resultLength = 0;
 		
-		while (src.getIndex() < end) {
+		while (src.getIndex() < end && src.current() != until) {
 			skipOneSequence(src);
 			src.next();
 			resultLength++;
@@ -249,6 +253,8 @@ public class Escaper {
 		
 		char[] result = new char[resultLength];
 		int pos = 0;
+		
+		end = src.getIndex();
 		src.setIndex(start);
 
 		while (src.getIndex() < end) {
@@ -257,6 +263,14 @@ public class Escaper {
 		}
 		
 		return result;
+	}
+	
+	public char[] unescape(CharacterIterator src, int length) throws EscapeException {
+		return unescape(src, length, CharacterIterator.DONE);
+	}
+	
+	public char[] unescape(CharacterIterator src, char until) throws EscapeException {
+		return unescape(src, -1, until);
 	}
 	
 	public char[] unescape(CharacterIterator src) throws EscapeException {

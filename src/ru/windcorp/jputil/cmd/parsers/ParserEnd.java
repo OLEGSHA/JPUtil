@@ -60,7 +60,8 @@ public class ParserEnd extends Parser {
 			}
 			
 			String excessiveArgs = String.valueOf(chars, 0, length);
-			return () -> new CommandSyntaxException(inv, "Excessive arguments \"" + excessiveArgs + "\""); // TODO translate
+			return () -> new CommandSyntaxException(inv,
+					inv.getContext().translate("auto.end.excessive", "Excessive arguments \"%1$s\"", excessiveArgs));
 		}
 		return null;
 	}

@@ -35,7 +35,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.text.CharacterIterator;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -112,6 +111,24 @@ public class AutoCommand extends Command {
 				obj, method);
 	}
 	
+	public AutoCommand(
+			String name,
+			String displayedSyntax, String desc,
+			Parser syntax, Object obj, String method) {
+		this(new String[] {name},
+				displayedSyntax, desc,
+				syntax, obj, method);
+	}
+	
+	public AutoCommand(
+			String name,
+			String displayedSyntax, String desc,
+			String syntax, Object obj, String method) {
+		this(new String[] {name},
+				displayedSyntax, desc,
+				syntax, obj, method);
+	}
+	
 	private String constructMethodSignature(Class<?> clazz, String method) {
 		return (object == null ? "static" : "")
 				+ " void "
@@ -125,17 +142,9 @@ public class AutoCommand extends Command {
 				+ ") throws CommandExceptions";
 	}
 	
-	private static final Object
-			BOOLEAN_NULL = Boolean.FALSE,
-			BYTE_NULL = Byte.valueOf((byte) 0),
-			SHORT_NULL = Short.valueOf((short) 0),
-			INT_NULL = Integer.valueOf(0),
-			LONG_NULL = Long.valueOf(0),
-			FLOAT_NULL = Float.valueOf(Float.NaN),
-			DOUBLE_NULL = Double.valueOf(Double.NaN),
-			CHAR_NULL = Character.valueOf('\uFFFF');
-	
 	private static final Map<Class<?>, Class<?>> PRIMITIVE_TO_BOXED = new HashMap<>();
+	private static final Map<Class<?>, Object> PRIMITIVE_TO_NULL = new HashMap<>();
+	
 	static {
 		for (Class<?> boxed : new Class<?>[] {
 			Boolean.class, Byte.class, Short.class, Character.class,
@@ -147,6 +156,15 @@ public class AutoCommand extends Command {
 				e.printStackTrace();
 			}
 		}
+		
+		PRIMITIVE_TO_NULL.put(Boolean.TYPE,		Boolean.FALSE);
+		PRIMITIVE_TO_NULL.put(Byte.TYPE,		Byte.valueOf((byte) 0));
+		PRIMITIVE_TO_NULL.put(Short.TYPE,		Short.valueOf((short) 0));
+		PRIMITIVE_TO_NULL.put(Integer.TYPE,		Integer.valueOf(0));
+		PRIMITIVE_TO_NULL.put(Long.TYPE,		Long.valueOf(0));
+		PRIMITIVE_TO_NULL.put(Float.TYPE,		Float.valueOf(Float.NaN));
+		PRIMITIVE_TO_NULL.put(Double.TYPE,		Double.valueOf(Double.NaN));
+		PRIMITIVE_TO_NULL.put(Character.TYPE,	Character.valueOf('\uFFFF'));
 	}
 	
 	protected class ParameterFiller implements Consumer<Object> {
@@ -156,8 +174,6 @@ public class AutoCommand extends Command {
 
 		public ParameterFiller(Object[] params) {
 			this.params = params;
-			System.out.println(Arrays.toString(params));
-			System.out.println(Arrays.toString(parameterTypes));
 		}
 		
 		@Override
@@ -169,9 +185,6 @@ public class AutoCommand extends Command {
 				}
 				
 				if (!c.isInstance(obj)) {
-					System.out.println(Arrays.toString(params));
-					System.out.println(Arrays.toString(parameterTypes));
-					
 					throw new IllegalArgumentException("Expecting argument of type "
 							+ c + ", received type " + obj.getClass()
 							+ " (\"" + obj + "\") at index " + index);
@@ -179,22 +192,8 @@ public class AutoCommand extends Command {
 				params[index] = obj;
 			} else if (!c.isPrimitive()) {
 				params[index] = null;
-			} else if (c == Boolean.TYPE) {
-				params[index] = BOOLEAN_NULL;
-			} else if (c == Byte.TYPE) {
-				params[index] = BYTE_NULL;
-			} else if (c == Short.TYPE) {
-				params[index] = SHORT_NULL;
-			} else if (c == Integer.TYPE) {
-				params[index] = INT_NULL;
-			} else if (c == Long.TYPE) {
-				params[index] = LONG_NULL;
-			} else if (c == Float.TYPE) {
-				params[index] = FLOAT_NULL;
-			} else if (c == Double.TYPE) {
-				params[index] = DOUBLE_NULL;
-			} else { // Is char
-				params[index] = CHAR_NULL;
+			} else {
+				params[index] = PRIMITIVE_TO_NULL.get(c);
 			}
 			index++;
 		}
@@ -228,15 +227,13 @@ public class AutoCommand extends Command {
 		try {
 			this.method.invoke(this.object, params);
 		} catch (IllegalAccessException e) {
-			
+			throw new CommandErrorException(inv, "Go figure", e);
 		} catch (IllegalArgumentException e) {
-			// TODO Auto-generated catch block
-			System.err.println("Called auto-generated catch block in AutoCommand.run for IllegalArgumentException");
-			e.printStackTrace();
+			throw new CommandErrorException(inv, "Something went wrong in AutoCommand. Check custom parsers then AutoCommand code", e);
 		} catch (InvocationTargetException e) {
-			// TODO Auto-generated catch block
-			System.err.println("Called auto-generated catch block in AutoCommand.run for InvocationTargetException");
-			e.printStackTrace();
+			if (e.getCause() instanceof CommandExceptions)
+				throw (CommandExceptions) e.getCause();
+			throw new CommandErrorException(inv, "Command \"" + this + "\" failed to execute", e);
 		}
 	}
 	

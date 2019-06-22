@@ -38,9 +38,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
-
 import ru.windcorp.jputil.chars.FancyCharacterIterator;
 import ru.windcorp.jputil.chars.StringUtil;
 
@@ -72,6 +69,7 @@ public class Parsers {
 	
 	public static void registerDefaultCreators() {
 		registerCreator("int", ParserInt::new);
+		registerCreator("word", ParserWord::new);
 	}
 	
 	public static Parser createParser(String syntax) {
@@ -214,7 +212,8 @@ public class Parsers {
 						: "Expected container ID or ':'");
 				
 				// We might have read the ID correctly though
-				if (currentItems.isEmpty()) unexpectedChar(it, "Must be at least one element in container");
+				if (terminateOnChar != CharacterIterator.DONE && currentItems.isEmpty())
+					unexpectedChar(it, "Must be at least one element in container");
 				
 				Parser result = createAppropriateItem(variableEntries, currentId, currentItems);
 				
@@ -305,20 +304,7 @@ public class Parsers {
 	}
 
 	private static Parser createParserConstant(FancyCharacterIterator it, int[] nextId) {
-		boolean isRegex = true;
 		StringBuilder sb = new StringBuilder();
-		
-		int index = it.getIndex();
-		
-		{
-			for (int i = 0; i < "regex:".length(); ++i, it.next()) {
-				if ("regex:".charAt(i) != it.current()) {
-					isRegex = false;
-					it.setIndex(index);
-					break;
-				}
-			}
-		}
 		
 		while (true) {
 			char c = it.current();
@@ -345,17 +331,7 @@ public class Parsers {
 		
 		it.next();
 		
-		String id = Integer.toString(nextId[0]++);
-		
-		if (isRegex) {
-			try {
-				return new ParserLiteral(id, Pattern.compile(sb.toString()).asPredicate(), null, "regex:" + sb);
-			} catch (PatternSyntaxException e) {
-				throw new IllegalArgumentException(e);
-			}
-		} else {
-			return new ParserLiteral(id, sb.toString(), null);
-		}
+		return new ParserLiteral(Integer.toString(nextId[0]++), sb.toString());
 	}
 
 	private static void unexpectedChar(FancyCharacterIterator it, String expected) {

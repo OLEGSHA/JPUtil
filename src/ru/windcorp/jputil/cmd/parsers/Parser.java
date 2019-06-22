@@ -34,10 +34,19 @@ import java.text.CharacterIterator;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import ru.windcorp.jputil.chars.EscapeException;
+import ru.windcorp.jputil.chars.Escaper;
 import ru.windcorp.jputil.chars.IndentedStringBuilder;
+import ru.windcorp.jputil.cmd.CommandSyntaxException;
 import ru.windcorp.jputil.cmd.Invocation;
 
 public abstract class Parser {
+	
+	public interface NoBrackets {
+		// Marker interface
+	}
+	
+	private static final Escaper ESCAPER = Escaper.JAVA;
 	
 	private final String id;
 	private String typeAsDeclared = null;
@@ -51,8 +60,15 @@ public abstract class Parser {
 	public abstract void parse(CharacterIterator data, Consumer<Object> output);
 	public abstract void insertArgumentClasses(Consumer<Class<?>> output);
 	
+	private transient Integer argumentCount = null;
 	public void insertEmpty(Consumer<Object> output) {
-		output.accept(null);
+		if (argumentCount == null) {
+			int[] counter = new int[1];
+			insertArgumentClasses(clazz -> counter[0]++);
+			argumentCount = counter[0];
+		}
+		
+		for (int i = 0; i < argumentCount; ++i) output.accept(null);
 	}
 	
 	protected void skipWhitespace(CharacterIterator data) {
@@ -65,6 +81,18 @@ public abstract class Parser {
 		int start = data.getIndex();
 		
 		char c = data.current();
+		if (c == '"') {
+			c = data.next();
+			try {
+				char[] unescaped = ESCAPER.unescape(data, '"');
+				if (data.current() == '"') return unescaped;
+			} catch (EscapeException e) {
+				// Do nothing
+			}
+
+			data.setIndex(start); // Invalid escape, assume no escape
+		}
+		
 		while (!Character.isWhitespace(c)) {
 			if (c == CharacterIterator.DONE) {
 				break;
@@ -87,6 +115,10 @@ public abstract class Parser {
 	protected char[] nextWord(CharacterIterator data) {
 		skipWhitespace(data);
 		return readWord(data);
+	}
+	
+	protected Supplier<Exception> argNotFound(Invocation inv) {
+		return () -> new CommandSyntaxException(inv, inv.getContext().translate("auto.generic.argNotFound", "Argument %1$s not found", getId()));
 	}
 	
 	/**

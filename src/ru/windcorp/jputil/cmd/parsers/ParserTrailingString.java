@@ -35,8 +35,9 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import ru.windcorp.jputil.cmd.Invocation;
+import ru.windcorp.jputil.cmd.parsers.Parser.NoBrackets;
 
-public class ParserTrailingString extends Parser {
+public class ParserTrailingString extends Parser implements NoBrackets {
 
 	public ParserTrailingString(String id) {
 		super(id);

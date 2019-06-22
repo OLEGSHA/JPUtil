@@ -17,41 +17,17 @@ package ru.windcorp.jputil.quickcfg;
 import java.io.IOException;
 import java.io.LineNumberReader;
 import java.io.Reader;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import ru.windcorp.jputil.chars.CharPredicate;
 import ru.windcorp.jputil.chars.StringUtil;
 
 public class QCFGParser {
 	
-	@FunctionalInterface
-	public static interface CharPredicate {
-		public static final CharPredicate WHITESPACE = Character::isWhitespace;
-		public static final CharPredicate NEWLINES = forArray('\n', '\r');
-		public static final CharPredicate WHITESPACE_NO_NEWLINES = c -> WHITESPACE.accept(c) && !NEWLINES.accept(c);
-		public static final CharPredicate DECLINER = c -> false;
-		
-		public static CharPredicate forArray(char... chars) {
-			if (chars.length == 0) {
-				return DECLINER;
-			}
-			
-			if (chars.length == 1) {
-				return forChar(chars[0]);
-			}
-			
-			final char[] sorted = Arrays.copyOf(chars, chars.length);
-			Arrays.sort(sorted);
-			return c -> Arrays.binarySearch(chars, c) >= 0;
-		}
-		
-		public static CharPredicate forChar(final char c) {
-			return given -> given == c;
-		}
-		
-		boolean accept(char c);
-	}
+	public static final CharPredicate WHITESPACE = Character::isWhitespace;
+	public static final CharPredicate NEWLINES = CharPredicate.forArray('\n', '\r');
+	public static final CharPredicate WHITESPACE_NO_NEWLINES = c -> WHITESPACE.test(c) && !NEWLINES.test(c);
 	
 	public static interface Setter {
 		void set(String  declar) throws InvalidSettingException;
@@ -74,11 +50,11 @@ public class QCFGParser {
 	}
 	
 	private char intraSep = '=';
-	private CharPredicate interSep = CharPredicate.WHITESPACE;
-	private CharPredicate trimValue = CharPredicate.WHITESPACE_NO_NEWLINES;
-	private CharPredicate trimName = CharPredicate.WHITESPACE_NO_NEWLINES;
+	private CharPredicate interSep = WHITESPACE;
+	private CharPredicate trimValue = WHITESPACE_NO_NEWLINES;
+	private CharPredicate trimName = WHITESPACE_NO_NEWLINES;
 	private char commentStart = '#';
-	private CharPredicate commentEnd = CharPredicate.NEWLINES;
+	private CharPredicate commentEnd = NEWLINES;
 
 	private class Setting {
 		private final String name;
@@ -156,8 +132,8 @@ public class QCFGParser {
 	}
 	
 	public QCFGParser doNotTrim() {
-		removeAfterName(CharPredicate.DECLINER);
-		removeBeforeValue(CharPredicate.DECLINER);
+		removeAfterName(c -> false);
+		removeBeforeValue(c -> false);
 		return this;
 	}
 
@@ -249,14 +225,14 @@ public class QCFGParser {
 						mode = COMMENT;
 						break;
 					}
-					if (!getInterSep().accept(current)) {
+					if (!getInterSep().test(current)) {
 						mode = READING_NAME;
 						continue processing;
 					}
 					break;
 					
 				case READING_NAME:
-					if (getTrimName().accept(current)) {
+					if (getTrimName().test(current)) {
 						if (sb.length() == 0) {
 							throw new QCFGException("[Line " + lineReader.getLineNumber() + "] Empty name");
 						}
@@ -280,20 +256,20 @@ public class QCFGParser {
 						mode = TRIMMING_VALUE;
 						break;
 					}
-					if (!getTrimName().accept(current)) {
+					if (!getTrimName().test(current)) {
 						throw new QCFGException("[Line " + lineReader.getLineNumber() + "] Illegal characters after name " + name);
 					}
 					break;
 					
 				case TRIMMING_VALUE:
-					if (!getTrimValue().accept(current)) {
+					if (!getTrimValue().test(current)) {
 						mode = READING_VALUE;
 						continue processing;
 					}
 					break;
 					
 				case READING_VALUE:
-					if (getInterSep().accept(current)) {
+					if (getInterSep().test(current)) {
 						Setting setting = settings.get(name);
 						if (!ignoreUnknown && setting == null) {
 							throw new QCFGException("[Line " + lineReader.getLineNumber() + "] Unknown setting \"" + name + "\"");
@@ -308,7 +284,7 @@ public class QCFGParser {
 					break;
 					
 				case COMMENT:
-					if (getCommentEnd().accept(current)) {
+					if (getCommentEnd().test(current)) {
 						mode = INTERSTATEMENT;
 						break;
 					}
