@@ -42,38 +42,47 @@ public class FancyCharacterIterator implements CharacterIterator {
 		this.data = data;
 	}
 
+	@Override
 	public char first() {
 		return obj.first();
 	}
 
+	@Override
 	public char last() {
 		return obj.last();
 	}
 
+	@Override
 	public char setIndex(int p) {
 		return obj.setIndex(p);
 	}
 
+	@Override
 	public char current() {
 		return obj.current();
 	}
 
+	@Override
 	public char next() {
 		return obj.next();
 	}
 
+	@Override
 	public char previous() {
 		return obj.previous();
 	}
 
+	@Override
 	public int getBeginIndex() {
 		return obj.getBeginIndex();
 	}
 
+	@Override
 	public int getEndIndex() {
 		return obj.getEndIndex();
 	}
 
+	@Override
 	public int getIndex() {
 		return obj.getIndex();
 	}

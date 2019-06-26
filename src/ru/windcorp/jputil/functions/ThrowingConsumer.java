@@ -13,6 +13,8 @@ public interface ThrowingConsumer<T, E extends Exception> {
 		return t -> {
 			try {
 				accept(t);
+			} catch (RuntimeException e) {
+				throw e;
 			} catch (Exception e) {
 				handler.accept(t, (E) e);
 			}

@@ -12,6 +12,8 @@ public interface ThrowingRunnable<E extends Exception> {
 		return () -> {
 			try {
 				run();
+			} catch (RuntimeException e) {
+				throw e;
 			} catch (Exception e) {
 				handler.accept((E) e);
 			}

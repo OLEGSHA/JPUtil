@@ -14,6 +14,8 @@ public interface ThrowingFunction<T, R, E extends Exception> {
 		return t -> {
 			try {
 				return apply(t);
+			} catch (RuntimeException e) {
+				throw e;
 			} catch (Exception e) {
 				if (handler != null) handler.accept(t, (E) e);
 				return value == null ? null : value.apply(t);

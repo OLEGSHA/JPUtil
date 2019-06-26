@@ -13,6 +13,8 @@ public interface ThrowingSupplier<T, E extends Exception> {
 		return () -> {
 			try {
 				return get();
+			} catch (RuntimeException e) {
+				throw e;
 			} catch (Exception e) {
 				if (handler != null) handler.accept((E) e);
 				return value == null ? null : value.get();

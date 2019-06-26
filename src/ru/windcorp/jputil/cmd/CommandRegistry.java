@@ -73,31 +73,30 @@ public class CommandRegistry extends Command {
 		String name = null;
 		String subArgs;
 		{
-			char[] chars = args.toCharArray();
 			StringBuilder sb = new StringBuilder();
 			int i;
 			
-			for (i = 0; i < chars.length; ++i) {
-				if (Character.isWhitespace(chars[i])) {
+			for (i = 0; i < args.length(); ++i) {
+				if (Character.isWhitespace(args.charAt(i))) {
 					name = sb.toString();
-					while (Character.isWhitespace(chars[++i]));
+					while (Character.isWhitespace(args.charAt(++i)));
 					break;
 				}
-				sb.append(chars[i]);
+				sb.append(args.charAt(i));
 			}
 			
 			if (name == null) {
 				name = args;
 				subArgs = "";
 			} else {
-				subArgs = String.valueOf(chars, i, chars.length - i);
+				subArgs = args.substring(i);
 			}
 		}
 		
 		if (contains(name)) {
 			runCommand(this, inv, name, subArgs);
 		} else {
-			CommandRegistry globals = inv.getContext().getGlobals();// TODO add help command VIA GLOBALS
+			CommandRegistry globals = inv.getContext().getGlobals();
 			if (globals != this) {
 				synchronized (globals) {
 					if (globals.contains(name)) {
@@ -159,7 +158,7 @@ public class CommandRegistry extends Command {
 	public synchronized List<Command> getCommands(CommandRunner runner) {
 		List<Command> commands = new ArrayList<>();
 			
-		for (Command c : commands) {
+		for (Command c : getCommands()) {
 			if (c.canRun(runner) == null) {
 				commands.add(c);
 			}

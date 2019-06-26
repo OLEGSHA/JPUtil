@@ -72,6 +72,7 @@ public class Context {
 				for (String helpName : helpCommand.getNames()) {
 					if (helpName.toLowerCase().equals(name)) {
 						helpCommand.run(inv.nextCall(parent, helpCommand, args));
+						return;
 					}
 				}
 			}
@@ -138,7 +139,7 @@ public class Context {
 		exceptionHandlers.put(clazz, handler);
 	}
 	
-	public synchronized void addDefaultExceptionHandlers(String fallbackComplaint, String cmdNotFoundComplaint) {
+	public synchronized void addDefaultExceptionHandlers(String fallbackComplaint, String cmdNotFoundComplaint, String syntaxIs) {
 		setFallbackExceptionHandler((Invocation i, Exception e) -> {
 			CommandRunner runner = i.getRunner();
 			runner.complain(fallbackComplaint, i.getFullCommand());
@@ -154,6 +155,20 @@ public class Context {
 				Complaint.class, e ->
 				e.getRunner().complain(e.getLocalizedMessage())
 		);
+		
+		addExceptionHandler(
+				CommandSyntaxException.class, e -> {
+					e.getRunner().complain(e.getLocalizedMessage());
+					e.getRunner().complain(syntaxIs, e.getInvocation().getCurrent().getSyntax());
+				}
+		);
+	}
+	
+	public void addDefaultExceptionHandlers() {
+		addDefaultExceptionHandlers(
+				"Command \"%1$s\" has terminated with an error",
+				"Subcommand \"%1$s\" not found (in command \"%2$s\")",
+				"Syntax: %1$s");
 	}
 
 	public Function<String, String> getTranslator() {

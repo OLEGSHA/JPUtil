@@ -35,6 +35,10 @@ public class HelpCommand extends Command {
 	public HelpCommand(String[] names, String syntax, String desc) {
 		super(names, syntax, desc);
 	}
+	
+	public HelpCommand() {
+		this(new String[] {"help", "?"}, "[QUERY]", "Lists appropriate commands or displays information about commands matching QUERY");
+	}
 
 	/**
 	 * @see ru.windcorp.jputil.cmd.Command#run(ru.windcorp.jputil.cmd.Invocation)
@@ -51,11 +55,11 @@ public class HelpCommand extends Command {
 			commands = parent.getCommands(inv.getRunner());
 			if (commands.isEmpty()) {
 				runner.respond(inv.getContext().translate("help.list.header.empty", "Command %1$s does not have available subcommands",
-						parent.getName()));
+						parent));
 				return;
 			}
 			runner.respond(inv.getContext().translate("help.list.header", "Command %1$s has %2$d subcommands:",
-					parent.getName(), commands.size()));
+					parent, commands.size()));
 		} else {
 			query = query.toLowerCase();
 			commands = new ArrayList<>();
@@ -63,6 +67,10 @@ public class HelpCommand extends Command {
 			synchronized (parent) {
 				commandLoop:
 				for (Command cmd : parent.getCommands()) {
+					if (cmd.canRun(runner) != null) {
+						continue commandLoop;
+					}
+					
 					for (String name : cmd.getNames()) {
 						name = name.toLowerCase();
 						if (name.equals(query)) {

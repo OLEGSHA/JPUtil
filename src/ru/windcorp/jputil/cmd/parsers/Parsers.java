@@ -51,23 +51,31 @@ public class Parsers {
 	private static final Map<String, ParserCreator> CREATORS = Collections.synchronizedMap(new HashMap<>());
 	
 	private static final Parser[] ARRAY_TEMPLATE = new Parser[0];
+	
+	private static boolean areDefaultsRegistered = false;
 
-	public static ParserCreator getCreator(String type) {
+	public static synchronized ParserCreator getCreator(String type) {
 		return CREATORS.get(type.toLowerCase());
 	}
 	
-	public static void registerCreator(String type, ParserCreator creator) {
+	public static synchronized void registerCreator(String type, ParserCreator creator) {
 		if (!isParserTypeName(type))
 			throw new IllegalArgumentException("Illegal characters in type name: only [a-z][A-Z][0-9]_ allowed, \"" + type + "\" given");
 		
 		CREATORS.put(type.toLowerCase(), creator);
 	}
 	
-	public static void registerCreator(String type, Function<String, Parser> creator) {
+	public static synchronized void registerCreator(String type, Function<String, Parser> creator) {
 		registerCreator(type, (id, meta) -> creator.apply(id));
 	}
 	
-	public static void registerDefaultCreators() {
+	public static synchronized void registerDefaultCreators() {
+		if (areDefaultsRegistered) {
+			return;
+		} else {
+			areDefaultsRegistered = true;
+		}
+		
 		registerCreator("int", ParserInt::new);
 		registerCreator("word", ParserWord::new);
 	}

@@ -45,101 +45,29 @@ import ru.windcorp.jputil.chars.FancyCharacterIterator;
 import ru.windcorp.jputil.chars.StringUtil;
 import ru.windcorp.jputil.cmd.parsers.Parser;
 import ru.windcorp.jputil.cmd.parsers.Parsers;
+import ru.windcorp.jputil.cmd.parsers.SyntaxFormatter;
+import ru.windcorp.jputil.functions.ThrowingBiConsumer;
 
 public class AutoCommand extends Command {
+	
+	@FunctionalInterface
+	public static interface Action extends ThrowingBiConsumer<Invocation, Object[], CommandExceptions> {
+		// Alias
+	}
 
 	private final Parser parser;
 	
-	private final Object object;
-	private final Method method;
+	private final Action action;
 	private final Class<?>[] parameterTypes;
 
 	public AutoCommand(
 			String[] names,
-			String displayedSyntax, String desc,
-			Parser parser, Object obj, String method) {
-		
-		super(names, displayedSyntax, desc);
-		Objects.requireNonNull(obj, "obj cannot be null");
+			String syntax, String desc,
+			Parser parser, Class<?>[] parameterTypes, Action action) {
+		super(names, syntax, desc);
 		this.parser = parser;
-		
-		{
-			List<Class<?>> parameterTypeList = new ArrayList<>();
-			parameterTypeList.add(Invocation.class);
-			parser.insertArgumentClasses(parameterTypeList::add);
-			parameterTypes = parameterTypeList.toArray(new Class<?>[0]);
-		}
-		
-		Class<?> clazz;
-		if (obj instanceof Class<?>) {
-			clazz = (Class<?>) obj;
-			object = null;
-		} else {
-			clazz = obj.getClass();
-			object = obj;
-		}
-		
-		try {
-			this.method = clazz.getMethod(method, parameterTypes);
-		} catch (NoSuchMethodException e) {
-			throw new IllegalArgumentException(
-					"Method not found. Looking for method with signature \""
-							+ constructMethodSignature(clazz, method) + "\"",
-					e);
-		}
-		
-		if (this.method.getReturnType() != Void.TYPE) {
-			throw new IllegalArgumentException(
-					"Method " + this.method + " is not void");
-		}
-		
-		int modifiers = this.method.getModifiers();
-		if (object == null && !Modifier.isStatic(modifiers)) {
-			throw new IllegalArgumentException(
-					"Method " + this.method + " is not static and no object provided");
-		}
-		
-		this.method.setAccessible(true);
-	}
-	
-	public AutoCommand(
-			String[] names,
-			String displayedSyntax, String desc,
-			String syntax, Object obj, String method) {
-		this(names, displayedSyntax, desc,
-				Parsers.createParser(syntax),
-				obj, method);
-	}
-	
-	public AutoCommand(
-			String name,
-			String displayedSyntax, String desc,
-			Parser syntax, Object obj, String method) {
-		this(new String[] {name},
-				displayedSyntax, desc,
-				syntax, obj, method);
-	}
-	
-	public AutoCommand(
-			String name,
-			String displayedSyntax, String desc,
-			String syntax, Object obj, String method) {
-		this(new String[] {name},
-				displayedSyntax, desc,
-				syntax, obj, method);
-	}
-	
-	private String constructMethodSignature(Class<?> clazz, String method) {
-		return (object == null ? "static" : "")
-				+ " void "
-				+ clazz.getCanonicalName()
-				+ "."
-				+ method
-				+ "("
-				+ StringUtil.supplierToString(
-						i -> parameterTypes[i].getCanonicalName(),
-						parameterTypes.length, ", ")
-				+ ") throws CommandExceptions";
+		this.parameterTypes = parameterTypes;
+		this.action = action;
 	}
 	
 	private static final Map<Class<?>, Class<?>> PRIMITIVE_TO_BOXED = new HashMap<>();
@@ -221,20 +149,9 @@ public class AutoCommand extends Command {
 		data.first();
 		
 		Consumer<Object> accepter = new ParameterFiller(params);
-		parser.parse(data, accepter);
+		parser.parse(data, accepter);// TODO check that arguments are exhaused (match ParserEnd)
 		params[0] = inv;
-		
-		try {
-			this.method.invoke(this.object, params);
-		} catch (IllegalAccessException e) {
-			throw new CommandErrorException(inv, "Go figure", e);
-		} catch (IllegalArgumentException e) {
-			throw new CommandErrorException(inv, "Something went wrong in AutoCommand. Check custom parsers then AutoCommand code", e);
-		} catch (InvocationTargetException e) {
-			if (e.getCause() instanceof CommandExceptions)
-				throw (CommandExceptions) e.getCause();
-			throw new CommandErrorException(inv, "Command \"" + this + "\" failed to execute", e);
-		}
+		this.action.accept(inv, params);
 	}
 	
 	/**
@@ -242,6 +159,162 @@ public class AutoCommand extends Command {
 	 */
 	public Parser getParser() {
 		return parser;
+	}
+	
+	public static class AutoCommandBuilder {
+		private final Object methodInst;
+		private final String methodName;
+		private Action action;
+		
+		private String[] names;
+		private String syntax;
+		private String description;
+		
+		private AutoCommandBuilder(Object methodInst, String methodName, Action action) {
+			this.methodInst = methodInst;
+			this.methodName = methodName;
+			this.action = action;
+		}
+		
+		public AutoCommandBuilder name(String... names) {
+			this.names = names;
+			return this;
+		}
+		
+		public AutoCommandBuilder meta(String description, String syntax) {
+			this.description = description;
+			this.syntax = syntax;
+			return this;
+		}
+		
+		public AutoCommandBuilder desc(String description) {
+			return meta(description, null);
+		}
+		
+		public AutoCommand parser(Parser parser, String syntax) {
+			Objects.requireNonNull(parser, "parser");
+			if (syntax != null) {
+				if (this.syntax != null) throw new IllegalArgumentException(
+						"Syntax is set manually and overwrite is attempted with parser()");
+				this.syntax = syntax;
+			}
+			
+			if (names == null) {
+				if (methodName == null) throw new IllegalArgumentException("Names are not set");
+				this.names = new String[] { methodName };
+			}
+			if (this.syntax == null) throw new IllegalArgumentException("Syntax is not set");
+			if (this.description == null) throw new IllegalArgumentException("Description is not set");
+			
+			Class<?>[] parameterTypes; {
+				List<Class<?>> parameterTypeList = new ArrayList<>();
+				parameterTypeList.add(Invocation.class);
+				parser.insertArgumentClasses(parameterTypeList::add);
+				parameterTypes = parameterTypeList.toArray(new Class<?>[0]);
+			}
+			
+			if (action == null) {
+				assert methodInst != null && methodName != null : "Action nor method lookup arguments are set";
+				findMethod(parser, parameterTypes);
+			}
+			
+			return new AutoCommand(names, syntax, description, parser, parameterTypes, action);
+		}
+		
+		public AutoCommand parser(Parser parser, SyntaxFormatter formatter) {
+			return parser(parser, parser.toSyntax(formatter));
+		}
+		
+		public AutoCommand parser(Parser parser) {
+			return parser(parser, (String) null);
+		}
+		
+		public AutoCommand parser(String syntax, SyntaxFormatter formatter) {
+			return parser(Parsers.createParser(syntax), formatter);
+		}
+		
+		public AutoCommand parser(String syntax) {
+			return parser(Parsers.createParser(syntax));
+		}
+		
+		private static Action wrapReflection(Method method, Object inst) {
+			return (inv, params) -> {
+				try {
+					method.invoke(inst, params);
+				} catch (IllegalAccessException e) {
+					throw new CommandErrorException(inv, "Go figure", e);
+				} catch (IllegalArgumentException e) {
+					throw new CommandErrorException(inv, "Something went wrong in AutoCommand. Check custom parsers then AutoCommand code", e);
+				} catch (InvocationTargetException e) {
+					if (e.getCause() instanceof CommandExceptions)
+						throw (CommandExceptions) e.getCause();
+					throw new CommandErrorException(inv, "Command \"" + inv.getCurrent() + "\" failed to execute", e);
+				}
+			};
+		}
+		
+		private void findMethod(Parser parser, Class<?>[] parameterTypes) {
+			Class<?> clazz;
+			Object inst;
+			
+			if (methodInst instanceof Class<?>) {
+				clazz = (Class<?>) methodInst;
+				inst = null;
+			} else {
+				clazz = methodInst.getClass();
+				inst = methodInst;
+			}
+			
+			Method method;
+			
+			try {
+				method = clazz.getMethod(methodName, parameterTypes);
+			} catch (NoSuchMethodException e) {
+				throw new IllegalArgumentException(
+						"Method not found. Looking for method with signature \""
+								+ (inst == null ? "static" : "")
+								+ " void "
+								+ clazz.getCanonicalName()
+								+ "."
+								+ methodName
+								+ "("
+								+ StringUtil.supplierToString(
+										i -> parameterTypes[i].getCanonicalName(),
+										parameterTypes.length, ", ")
+								+ ") throws CommandExceptions" + "\"",
+						e);
+			}
+			
+			if (method.getReturnType() != Void.TYPE)
+				throw new IllegalArgumentException("Method " + method + " is not void");
+			int modifiers = method.getModifiers();
+			if (inst == null && !Modifier.isStatic(modifiers))
+				throw new IllegalArgumentException(
+						"Method " + method + " is not static and no object provided");
+			method.setAccessible(true);
+			action = wrapReflection(method, inst);
+		}
+	}
+	
+	public static AutoCommandBuilder forMethod(Object methodInst, String methodName) {
+		return new AutoCommandBuilder(methodInst, Objects.requireNonNull(methodName, "methodName"), null);
+	}
+	
+	public static AutoCommandBuilder forAction(Action action) {
+		return new AutoCommandBuilder(null, null, Objects.requireNonNull(action, "action"));
+	}
+	
+	public static AutoCommandBuilder forMethod(Method method, Object inst) {
+		return new AutoCommandBuilder(null, null, AutoCommandBuilder.wrapReflection(
+				Objects.requireNonNull(method, "method"), inst));
+	}
+	
+	public static AutoCommandBuilder forMethod(Method staticMethod) {
+		return forMethod(Objects.requireNonNull(staticMethod, "staticMethod"), (Object) null);
+	}
+	
+	public static void regsiterDefaultParsers() {
+		Parsers.registerDefaultCreators();
 	}
 	
 }
