@@ -85,7 +85,10 @@ public abstract class Parser {
 			c = data.next();
 			try {
 				char[] unescaped = ESCAPER.unescape(data, '"');
-				if (data.current() == '"') return unescaped;
+				if (data.current() == '"') {
+					data.next();
+					return unescaped;
+				}
 			} catch (EscapeException e) {
 				// Do nothing
 			}
