@@ -38,13 +38,15 @@ import ru.windcorp.jputil.cmd.CommandSyntaxException;
 import ru.windcorp.jputil.cmd.Invocation;
 
 public class ParserEnd extends Parser {
+	
+	public static final ParserEnd INST = new ParserEnd();
 
 	public ParserEnd() {
 		super("End");
 	}
 
 	@Override
-	public Supplier<Exception> getProblem(CharacterIterator data, Invocation inv) {
+	public Supplier<CommandSyntaxException> getProblem(CharacterIterator data, Invocation inv) {
 		skipWhitespace(data);
 		if (data.getIndex() < data.getEndIndex()) {
 			char[] chars = new char[data.getEndIndex() - data.getIndex()];

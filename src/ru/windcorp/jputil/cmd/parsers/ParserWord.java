@@ -46,7 +46,7 @@ public class ParserWord extends Parser {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.tge2.util.ncmd.Invocation)
 	 */
 	@Override
-	public Supplier<Exception> getProblem(CharacterIterator data, Invocation inv) {
+	public Supplier<? extends Exception> getProblem(CharacterIterator data, Invocation inv) {
 		nextWord(data);
 		return argNotFound(inv);
 	}

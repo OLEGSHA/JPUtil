@@ -44,6 +44,7 @@ import java.util.function.Consumer;
 import ru.windcorp.jputil.chars.FancyCharacterIterator;
 import ru.windcorp.jputil.chars.StringUtil;
 import ru.windcorp.jputil.cmd.parsers.Parser;
+import ru.windcorp.jputil.cmd.parsers.ParserEnd;
 import ru.windcorp.jputil.cmd.parsers.Parsers;
 import ru.windcorp.jputil.cmd.parsers.SyntaxFormatter;
 import ru.windcorp.jputil.functions.ThrowingBiConsumer;
@@ -149,7 +150,14 @@ public class AutoCommand extends Command {
 		data.first();
 		
 		Consumer<Object> accepter = new ParameterFiller(params);
-		parser.parse(data, accepter);// TODO check that arguments are exhaused (match ParserEnd)
+		parser.parse(data, accepter);
+		
+		int index = data.getIndex();
+		if (!ParserEnd.INST.matches(data)) {
+			data.setIndex(index);
+			throw ParserEnd.INST.getProblem(data, inv).get();
+		}
+		
 		params[0] = inv;
 		this.action.accept(inv, params);
 	}

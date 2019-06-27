@@ -50,9 +50,9 @@ public class ParserContainerVariable extends Parser {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator)
 	 */
 	@Override
-	public Supplier<Exception> getProblem(CharacterIterator data, Invocation inv) {
-		Supplier<Exception> problem = null;
-		Supplier<Exception> firstProblem = null;
+	public Supplier<? extends Exception> getProblem(CharacterIterator data, Invocation inv) {
+		Supplier<? extends Exception> problem = null;
+		Supplier<? extends Exception> firstProblem = null;
 		
 		int index = data.getIndex();
 		

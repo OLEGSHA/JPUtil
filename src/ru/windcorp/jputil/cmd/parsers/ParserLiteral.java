@@ -51,7 +51,7 @@ public class ParserLiteral extends Parser implements NoBrackets {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.jputil.cmd.Invocation)
 	 */
 	@Override
-	public Supplier<Exception> getProblem(CharacterIterator data, Invocation inv) {
+	public Supplier<? extends Exception> getProblem(CharacterIterator data, Invocation inv) {
 		String arg = String.valueOf(nextWord(data));
 		if (arg.length() == 0) return argNotFound(inv);
 		return () -> new CommandSyntaxException(inv, inv.getContext().translate("auto.literal.doesNotMatch", "\"%2$s\" expected, \"%1$s\" encountered", arg, template));

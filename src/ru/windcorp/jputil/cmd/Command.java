@@ -31,6 +31,7 @@
 package ru.windcorp.jputil.cmd;
 
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public abstract class Command {
@@ -38,6 +39,8 @@ public abstract class Command {
 	private final String[] names;
 	private final String syntax;
 	private final String desc;
+	
+	private Function<CommandRunner, Supplier<? extends CommandExceptions>> runnerFilter = null;
 	
 	protected Command(String[] names, String syntax, String desc) {
 		Objects.requireNonNull(names, "names cannot be null");
@@ -55,7 +58,8 @@ public abstract class Command {
 	public abstract void run(Invocation inv) throws CommandExceptions;
 	
 	public Supplier<? extends CommandExceptions> canRun(CommandRunner runner) {
-		return null;//TODO add CommandRunner filter or smth
+		Function<CommandRunner, Supplier<? extends CommandExceptions>> filter = getRunnerFilter();
+		return filter == null ? null : filter.apply(runner);
 	}
 	
 	public String getName() {
@@ -84,11 +88,26 @@ public abstract class Command {
 	}
 	
 	/**
+	 * @return the runnerFilter
+	 */
+	public Function<CommandRunner, Supplier<? extends CommandExceptions>> getRunnerFilter() {
+		return runnerFilter;
+	}
+	
+	/**
+	 * @param runnerFilter the runnerFilter to set
+	 */
+	public Command setRunnerFilter(Function<CommandRunner, Supplier<? extends CommandExceptions>> runnerFilter) {
+		this.runnerFilter = runnerFilter;
+		return this;
+	}
+	
+	/**
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
 	public String toString() {
-		return  getName();
+		return getName();
 	}
 	
 }

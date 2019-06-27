@@ -55,7 +55,7 @@ public abstract class Parser {
 		this.id = id;
 	}
 	
-	public abstract Supplier<Exception> getProblem(CharacterIterator data, Invocation inv);
+	public abstract Supplier<? extends Exception> getProblem(CharacterIterator data, Invocation inv);
 	public abstract boolean matches(CharacterIterator data);
 	public abstract void parse(CharacterIterator data, Consumer<Object> output);
 	public abstract void insertArgumentClasses(Consumer<Class<?>> output);
@@ -120,7 +120,7 @@ public abstract class Parser {
 		return readWord(data);
 	}
 	
-	protected Supplier<Exception> argNotFound(Invocation inv) {
+	protected Supplier<CommandSyntaxException> argNotFound(Invocation inv) {
 		return () -> new CommandSyntaxException(inv, inv.getContext().translate("auto.generic.argNotFound", "Argument %1$s not found", getId()));
 	}
 	
