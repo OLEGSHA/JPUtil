@@ -111,6 +111,12 @@ public class Parsers {
 				
 				if (c == '.') {
 					if (it.next() == '.' & it.next() == '.') {
+						it.next();
+						skipWhitespace(it);
+						if (it.current() != terminateOnChar) {
+							unexpectedChar(it, "Expected '" + terminateOnChar + "'");
+						}
+						it.next();
 						return new ParserTrailingString(typeOrID.length() == 0
 								? Integer.toString(nextId[0]++)
 								: typeOrID.toString());
