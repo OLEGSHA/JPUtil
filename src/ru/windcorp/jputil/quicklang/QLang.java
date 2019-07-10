@@ -24,9 +24,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
+import ru.windcorp.jputil.chars.CharPredicate;
 import ru.windcorp.jputil.chars.EscapeException;
 import ru.windcorp.jputil.chars.Escaper;
-import ru.windcorp.jputil.chars.StringUtil;
+import ru.windcorp.jputil.chars.reader.CharReader;
+import ru.windcorp.jputil.chars.reader.CharReaders;
 
 public class QLang {
 	
@@ -63,19 +65,22 @@ public class QLang {
 		QLang lang = new QLang(name);
 		
 		BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8));
-		String line;
-		String[] parts;
+		CharReader in = CharReaders.wrap(reader);
 		
-		while ((line = reader.readLine()) != null) {
-			if (!line.startsWith("#")) {
-				parts = StringUtil.split(line, '=', 2);
+		while (!in.isEnd()) {
+			if (in.current() == '#') {
+				in.skipLine();
+			} else {
+				in.skipWhitespace();
+				String key = new String(in.readUntil(CharPredicate.forChar('=')));
 				
-				if (parts[1] == null) {
-					lang.getMap().put(parts[0], "null");
+				if (in.current() != '=') {
+					lang.getMap().put(key, "null");
 				} else {
-					lang.getMap().put(
-							parts[0],
-							new String(ESCAPER.unescape(parts[1])));
+					in.mark();
+					int length = in.skipWhitespace();
+					in.reset();
+					lang.getMap().put(key, new String(ESCAPER.unescape(in, length)));
 				}
 			}
 		}

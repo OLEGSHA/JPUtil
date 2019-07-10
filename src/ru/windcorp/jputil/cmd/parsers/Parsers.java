@@ -392,7 +392,7 @@ public class Parsers {
 	}
 
 	private static boolean isIdCharacter(char c) {
-		return "<>[]|\"()".indexOf(c) < 0 && !Character.isWhitespace(c);
+		return "<>[]|\"().".indexOf(c) < 0 && !Character.isWhitespace(c);
 	}
 
 }

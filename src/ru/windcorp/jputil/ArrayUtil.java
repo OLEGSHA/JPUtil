@@ -14,6 +14,7 @@
  */
 package ru.windcorp.jputil;
 
+import java.lang.reflect.Array;
 import java.math.BigInteger;
 import java.util.Objects;
 
@@ -486,6 +487,34 @@ public class ArrayUtil {
 			s += array[i];
 		}
 		return s;
+	}
+	
+	public static int checkArrayOffsetLength(Object array, int offset, int length) {
+		int arrayLength = Array.getLength(array);
+		
+		if (length < 0)
+			length = arrayLength;
+		
+		int end = offset + length;
+		if (end > arrayLength || offset < 0)
+			throw new IllegalArgumentException("Array contains [0; " + arrayLength + "), requested [" + offset + "; " + end + ")");
+		
+		return length;
+	}
+	
+	public static int checkArrayStartEnd(Object array, int start, int end) {
+		int arrayLength = Array.getLength(array);
+		
+		if (end < 0)
+			end = arrayLength;
+		
+		if (start > end)
+			throw new IllegalArgumentException("Start > end: " + start + " > " + end);
+		
+		if (end > arrayLength || start < 0)
+			throw new IllegalArgumentException("Array contains [0; " + arrayLength + "), requested [" + start + "; " + end + ")");
+		
+		return end;
 	}
 	
 }
