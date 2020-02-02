@@ -35,7 +35,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import ru.windcorp.jputil.chars.IndentedStringBuilder;
-import ru.windcorp.jputil.cmd.Invocation;
+import ru.windcorp.jputil.cmd.AutoCommand.AutoInvocation;
 import ru.windcorp.jputil.cmd.parsers.Parser.NoBrackets;
 
 public class ParserContainerOptional extends Parser implements NoBrackets {// TODO make several attempts to parse arguments when optional arguments exist (e.g. [arg1] <arg2> fails if only arg2 is present)
@@ -43,19 +43,24 @@ public class ParserContainerOptional extends Parser implements NoBrackets {// TO
 	private final Parser contents;
 
 	public ParserContainerOptional(String id, Parser item) {
-		super(id);
+		super(id, appendPresentMarkerToArgumentClasses(item));
 		this.contents = item;
+	}
+
+	private static Class<?>[] appendPresentMarkerToArgumentClasses(Parser parser) {
+		Class<?>[] result = new Class<?>[parser.getArgumentClasses().length + 1];
+		result[0] = Boolean.TYPE;
+		System.arraycopy(parser.getArgumentClasses(), 0, result, 1, parser.getArgumentClasses().length);
+		return result;
 	}
 
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator)
 	 */
 	@Override
-	public Supplier<Exception> getProblem(CharacterIterator data, Invocation inv) {
-		int index = data.getIndex();
-		
-		if (contents.getProblem(data, inv) != null) {
-			data.setIndex(index);
+	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
+		if (inv.getApproachData(this, Boolean.class)) {
+			return contents.getProblem(data, inv);
 		}
 		
 		return null;
@@ -65,51 +70,45 @@ public class ParserContainerOptional extends Parser implements NoBrackets {// TO
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#matches(java.text.CharacterIterator)
 	 */
 	@Override
-	public boolean matches(CharacterIterator data) {
-		int index = data.getIndex();
-		
-		if (!contents.matches(data)) {
-			data.setIndex(index);
+	public boolean matches(CharacterIterator data, AutoInvocation inv) {
+		if (inv.getApproachData(this, Boolean.class)) {
+			return contents.matches(data, inv);
 		}
 		
 		return true;
 	}
 
 	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#parse(java.text.CharacterIterator, java.util.function.Consumer)
+	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertParsed(java.text.CharacterIterator, java.util.function.Consumer)
 	 */
 	@Override
-	public void parse(CharacterIterator data, Consumer<Object> output) {
-		int index = data.getIndex();
-		
-		boolean matches = contents.matches(data);
-		data.setIndex(index);
-		
-		if (matches) {
+	public void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output) {
+		if (inv.getApproachData(this, Boolean.class)) {
 			output.accept(true);
-			contents.parse(data, output);
+			contents.insertParsed(data, inv, output);
 		} else {
 			output.accept(false);
 			contents.insertEmpty(output);
 		}
 	}
 	
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertEmpty(java.util.function.Consumer)
-	 */
 	@Override
-	public void insertEmpty(Consumer<Object> output) {
-		output.accept(false);
-		contents.insertEmpty(output);
+	public boolean selectNextApproach(AutoInvocation inv) {
+		if (inv.getApproachData(this, Boolean.class)) {
+			if (!contents.selectNextApproach(inv)) {
+				inv.setApproachData(this, false);
+			}
+			
+			return true;
+		} else {
+			return false;
+		}
 	}
 	
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertArgumentClasses(java.util.function.Consumer)
-	 */
 	@Override
-	public void insertArgumentClasses(Consumer<Class<?>> output) {
-		output.accept(Boolean.TYPE);
-		contents.insertArgumentClasses(output);
+	public void resetApproach(AutoInvocation inv) {
+		inv.setApproachData(this, true);
+		contents.resetApproach(inv);
 	}
 	
 	/**

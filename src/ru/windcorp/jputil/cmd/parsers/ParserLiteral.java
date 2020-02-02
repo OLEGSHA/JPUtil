@@ -23,8 +23,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import ru.windcorp.jputil.chars.IndentedStringBuilder;
+import ru.windcorp.jputil.cmd.AutoCommand.AutoInvocation;
 import ru.windcorp.jputil.cmd.CommandSyntaxException;
-import ru.windcorp.jputil.cmd.Invocation;
 import ru.windcorp.jputil.cmd.parsers.Parser.NoBrackets;
 
 /**
@@ -37,7 +37,7 @@ public class ParserLiteral extends Parser implements NoBrackets {
 	private final char[] templateChars;
 
 	public ParserLiteral(String id, String template) {
-		super(id);
+		super(id, new Class<?>[0]);
 		
 		if (Objects.requireNonNull(template, "template").isEmpty()) {
 			throw new IllegalArgumentException("Template is empty");
@@ -51,7 +51,9 @@ public class ParserLiteral extends Parser implements NoBrackets {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.jputil.cmd.Invocation)
 	 */
 	@Override
-	public Supplier<? extends Exception> getProblem(CharacterIterator data, Invocation inv) {
+	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
+		if (matchOrReset(data, inv)) return null;
+		
 		String arg = String.valueOf(nextWord(data));
 		if (arg.length() == 0) return argNotFound(inv);
 		return () -> new CommandSyntaxException(inv, inv.getContext().translate("auto.literal.doesNotMatch", "\"%2$s\" expected, \"%1$s\" encountered", arg, template));
@@ -61,34 +63,27 @@ public class ParserLiteral extends Parser implements NoBrackets {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#matches(java.text.CharacterIterator)
 	 */
 	@Override
-	public boolean matches(CharacterIterator data) {
+	public boolean matches(CharacterIterator data, AutoInvocation inv) {
 		skipWhitespace(data);
 		
 		for (int i = 0; i < templateChars.length; ++i) {
-			if (data.next() != templateChars[i]) {
+			if (data.current() != templateChars[i]) {
 				return false;
 			}
+			data.next();
 		}
 		
 		return true;
 	}
 
 	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#parse(java.text.CharacterIterator, java.util.function.Consumer)
+	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertParsed(java.text.CharacterIterator, java.util.function.Consumer)
 	 */
 	@Override
-	public void parse(CharacterIterator data, Consumer<Object> output) {
+	public void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output) {
 		skipWhitespace(data);
 		while (!Character.isWhitespace(data.current()))
 			data.next();
-		// Output nothing
-	}
-
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertArgumentClasses(java.util.function.Consumer)
-	 */
-	@Override
-	public void insertArgumentClasses(Consumer<Class<?>> output) {
 		// Output nothing
 	}
 

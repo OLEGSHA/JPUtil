@@ -34,46 +34,41 @@ import java.text.CharacterIterator;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import ru.windcorp.jputil.cmd.Invocation;
+import ru.windcorp.jputil.cmd.AutoCommand.AutoInvocation;
 
 public class ParserWord extends Parser {
 
 	public ParserWord(String id) {
-		super(id);
+		super(id, String.class);
 	}
 
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.tge2.util.ncmd.Invocation)
 	 */
 	@Override
-	public Supplier<? extends Exception> getProblem(CharacterIterator data, Invocation inv) {
-		nextWord(data);
-		return argNotFound(inv);
+	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
+		if (nextWord(data).length == 0) {
+			return argNotFound(inv);
+		} else {
+			return null;
+		}
 	}
 
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#matches(java.text.CharacterIterator)
 	 */
 	@Override
-	public boolean matches(CharacterIterator data) {
+	public boolean matches(CharacterIterator data, AutoInvocation inv) {
 		return nextWord(data).length != 0;
 	}
 
 	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#parse(java.text.CharacterIterator, java.util.function.Consumer)
+	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertParsed(java.text.CharacterIterator, java.util.function.Consumer)
 	 */
 	@Override
-	public void parse(CharacterIterator data, Consumer<Object> output) {
+	public void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output) {
 		output.accept(new String(nextWord(data)));
 		return;
-	}
-
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertArgumentClasses(java.util.function.Consumer)
-	 */
-	@Override
-	public void insertArgumentClasses(Consumer<Class<?>> output) {
-		output.accept(String.class);
 	}
 
 }

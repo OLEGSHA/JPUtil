@@ -32,53 +32,50 @@ package ru.windcorp.jputil.cmd.parsers;
 
 import java.lang.reflect.Array;
 import java.text.CharacterIterator;
-import java.text.StringCharacterIterator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import ru.windcorp.jputil.PrimitiveUtil;
 import ru.windcorp.jputil.chars.IndentedStringBuilder;
-import ru.windcorp.jputil.cmd.Invocation;
+import ru.windcorp.jputil.cmd.AutoCommand.AutoInvocation;
 import ru.windcorp.jputil.cmd.parsers.Parser.NoBrackets;
 
 public class ParserTrailingSpecific extends Parser implements NoBrackets {
 	
-	private static final CharacterIterator EXHAUSTED_CHARACTER_ITERATOR = new StringCharacterIterator("");
-	
 	private final Parser parser;
-	private final Class<?>[] outputArrayClasses;
-	private final Class<?>[] outputClasses;
+	
+	private final Class<?>[] wrappedOutputClasses;
+	private final Class<?>[] rawOutputClasses;
 
 	public ParserTrailingSpecific(String id, Parser parser) {
-		super(id);
+		super(id, createOutputArrayClasses(parser));
 		this.parser = parser;
 		
-		if (parser.matches(EXHAUSTED_CHARACTER_ITERATOR)) {
-			throw new IllegalArgumentException("Invalid template parser " + parser
-					+ ": matches empty string");
-		}
+		rawOutputClasses = parser.getArgumentClasses();
+		wrappedOutputClasses = new Class<?>[rawOutputClasses.length];
 		
-		List<Class<?>> collector = new ArrayList<>(1);
-		parser.insertArgumentClasses(collector::add);
-		if (collector.isEmpty()) {
-			throw new IllegalArgumentException("Invalid template parser " + parser
-					+ ": must output one argument per appearance, outputs nothing");
-		}
-		
-		outputClasses = collector.toArray(new Class<?>[collector.size()]);
-		outputArrayClasses = new Class<?>[outputClasses.length];
-		
-		for (int i = 0; i < outputClasses.length; ++i) {
-			outputArrayClasses[i] = Array.newInstance(outputClasses[i], 0).getClass(); // WTF, JRE? I want my getArrayType()!
+		for (int i = 0; i < wrappedOutputClasses.length; ++i) {
+			wrappedOutputClasses[i] = PrimitiveUtil.getBoxedClass(rawOutputClasses[i]);
 		}
 	}
 
+	private static Class<?>[] createOutputArrayClasses(Parser parser) {
+		Class<?>[] result = new Class<?>[parser.getArgumentClasses().length];
+		
+		for (int i = 0; i < result.length; ++i) {
+			result[i] = Array.newInstance(parser.getArgumentClasses()[i], 0).getClass(); // WTF, JRE? I want my getArrayType()!
+		}
+		
+		return result;
+	}
+
 	@Override
-	public Supplier<? extends Exception> getProblem(CharacterIterator data, Invocation inv) {
+	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
 		while (data.getIndex() < data.getEndIndex()) {
 			int index = data.getIndex();
-			if (!parser.matches(data)) {
+			if (!parser.matches(data, inv)) {
 				data.setIndex(index);
 				return parser.getProblem(data, inv);
 			}
@@ -91,9 +88,9 @@ public class ParserTrailingSpecific extends Parser implements NoBrackets {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#matches(java.text.CharacterIterator)
 	 */
 	@Override
-	public boolean matches(CharacterIterator data) {
+	public boolean matches(CharacterIterator data, AutoInvocation inv) {
 		while (data.getIndex() < data.getEndIndex()) {
-			if (!parser.matches(data)) {
+			if (!parser.matches(data, inv)) {
 				return false;
 			}
 		}
@@ -107,24 +104,38 @@ public class ParserTrailingSpecific extends Parser implements NoBrackets {
 		int index = 0;
 		
 		OutputCollector() {
-			collectors = new ArrayList<>(outputClasses.length);
-			for (int i = 0; i < outputClasses.length; ++i)
+			collectors = new ArrayList<>(wrappedOutputClasses.length);
+			for (int i = 0; i < wrappedOutputClasses.length; ++i)
 				collectors.add(new ArrayList<>());
 		}
 		
 		@Override
 		public void accept(Object t) {
+			Class<?> expectedClass = wrappedOutputClasses[index];
+			
+			if (!expectedClass.isInstance(t)) {
+				throw new IllegalArgumentException("Expecting argument of type "
+						+ expectedClass + ", received type " + t.getClass()
+						+ " (\"" + t + "\") at index " + index);
+			}
+			
 			collectors.get(index).add(t);
 			index++;
-			if (index == outputClasses.length) index = 0;
+			if (index == wrappedOutputClasses.length) index = 0;
 		}
 		
 		void insertResults(Consumer<Object> output) {
 			for (int i = 0; i < collectors.size(); ++i) {
 				// Dark majik ensues
 				List<Object> collector = collectors.get(i);
-				Object array = Array.newInstance(outputClasses[i], collector.size());
-				array = collector.toArray((Object[]) array);
+				Object array = Array.newInstance(rawOutputClasses[i], collector.size());
+				
+				int index = 0;
+				for (Object object : collector) {
+					Array.set(array, index, object);
+					index++;
+				}
+				
 				output.accept(array);
 			}
 		}
@@ -132,37 +143,17 @@ public class ParserTrailingSpecific extends Parser implements NoBrackets {
 	}
 
 	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#parse(java.text.CharacterIterator, java.util.function.Consumer)
+	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertParsed(java.text.CharacterIterator, java.util.function.Consumer)
 	 */
 	@Override
-	public void parse(CharacterIterator data, Consumer<Object> output) {
+	public void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output) {
 		OutputCollector collector = new OutputCollector();
 		
 		while (data.getIndex() < data.getEndIndex()) {
-			parser.parse(data, collector);
+			parser.insertParsed(data, inv, collector);
 		}
 		
 		collector.insertResults(output);
-	}
-
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertArgumentClasses(java.util.function.Consumer)
-	 */
-	@Override
-	public void insertArgumentClasses(Consumer<Class<?>> output) {
-		for (Class<?> outputArrayClass : outputArrayClasses) {
-			output.accept(outputArrayClass);
-		}
-	}
-	
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertEmpty(java.util.function.Consumer)
-	 */
-	@Override
-	public void insertEmpty(Consumer<Object> output) {
-		for (int i = 0; i < outputClasses.length; ++i) {
-			output.accept(null);
-		}
 	}
 	
 	/**

@@ -35,22 +35,42 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import ru.windcorp.jputil.chars.IndentedStringBuilder;
-import ru.windcorp.jputil.cmd.Invocation;
+import ru.windcorp.jputil.cmd.AutoCommand.AutoInvocation;
 
 public class ParserContainerGroup extends Parser {
 	
-	private final Parser[] items;
+	private final Parser[] items; 
 
 	public ParserContainerGroup(String id, Parser[] items) {
-		super(id);
+		super(id, concatenateArgumentClasses(items));
 		this.items = items;
+	}
+	
+	private static Class<?>[] concatenateArgumentClasses(Parser[] parsers) {
+		int length = 0;
+		
+		for (Parser p : parsers)
+			length += p.getArgumentClasses().length;
+		
+		Class<?>[] result = new Class<?>[length];
+		int i = 0;
+		
+		for (Parser p : parsers) {
+			System.arraycopy(
+					p.getArgumentClasses(), 0,
+					result, i,
+					p.getArgumentClasses().length);
+			i += p.getArgumentClasses().length;
+		}
+		
+		return result;
 	}
 
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator)
 	 */
 	@Override
-	public Supplier<? extends Exception> getProblem(CharacterIterator data, Invocation inv) {
+	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
 		Supplier<? extends Exception> problem = null;
 		
 		for (Parser item : items) {
@@ -67,41 +87,21 @@ public class ParserContainerGroup extends Parser {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#matches(java.text.CharacterIterator)
 	 */
 	@Override
-	public boolean matches(CharacterIterator data) {
+	public boolean matches(CharacterIterator data, AutoInvocation inv) {
 		for (Parser item : items) {
-			if (!item.matches(data))
+			if (!item.matches(data, inv))
 				return false;
 		}
 		return true;
 	}
 	
 	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#parse(java.text.CharacterIterator, java.util.function.Consumer)
+	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertParsed(java.text.CharacterIterator, java.util.function.Consumer)
 	 */
 	@Override
-	public void parse(CharacterIterator data, Consumer<Object> output) {
+	public void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output) {
 		for (Parser item : items) {
-			item.parse(data, output);
-		}
-	}
-	
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertEmpty(java.util.function.Consumer)
-	 */
-	@Override
-	public void insertEmpty(Consumer<Object> output) {
-		for (Parser item : items) {
-			item.insertEmpty(output);
-		}
-	}
-	
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertArgumentClasses(java.util.function.Consumer)
-	 */
-	@Override
-	public void insertArgumentClasses(Consumer<Class<?>> output) {
-		for (Parser item : items) {
-			item.insertArgumentClasses(output);
+			item.insertParsed(data, inv, output);
 		}
 	}
 	
@@ -145,6 +145,30 @@ public class ParserContainerGroup extends Parser {
 			if (i != items.length - 1) {
 				sb.append(' ');
 			}
+		}
+	}
+	
+	@Override
+	public boolean selectNextApproach(AutoInvocation inv) {
+		boolean couldSelectNext = false;
+		
+		for (int i = items.length - 1; i >= 0; --i) {
+			couldSelectNext = items[i].selectNextApproach(inv);
+			
+			if (couldSelectNext) {
+				break;
+			} else {
+				items[i].resetApproach(inv);
+			}
+		}
+		
+		return couldSelectNext;
+	}
+	
+	@Override
+	public void resetApproach(AutoInvocation inv) {
+		for (Parser item : items) {
+			item.resetApproach(inv);
 		}
 	}
 	

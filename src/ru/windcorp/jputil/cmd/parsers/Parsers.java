@@ -394,5 +394,17 @@ public class Parsers {
 	private static boolean isIdCharacter(char c) {
 		return "<>[]|\"().".indexOf(c) < 0 && !Character.isWhitespace(c);
 	}
+	
+	public static Parser appendEndCheck(Parser parser) {
+		return new ParserContainerGroup(parser.getId() + "_andEndChecker", new Parser[] {
+				parser,
+				ParserEnd.INST
+		}) {
+			@Override
+			protected void toSyntax(StringBuilder sb, SyntaxFormatter formatter) {
+				parser.toSyntax(sb, formatter);
+			}
+		};
+	}
 
 }

@@ -35,22 +35,44 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import ru.windcorp.jputil.chars.IndentedStringBuilder;
-import ru.windcorp.jputil.cmd.Invocation;
+import ru.windcorp.jputil.cmd.AutoCommand.AutoInvocation;
 
 public class ParserContainerVariable extends Parser {
 
 	private final Parser[] items;
 	
 	public ParserContainerVariable(String id, Parser[] groups) {
-		super(id);
+		super(id, concatenateArgumentClasses(groups));
 		this.items = groups;
+	}
+	
+	private static Class<?>[] concatenateArgumentClasses(Parser[] parsers) {
+		int length = 0;
+		
+		for (Parser p : parsers)
+			length += p.getArgumentClasses().length + 1;
+		
+		Class<?>[] result = new Class<?>[length];
+		int i = 0;
+		
+		for (Parser p : parsers) {
+			result[i++] = Boolean.TYPE;
+			
+			System.arraycopy(
+					p.getArgumentClasses(), 0,
+					result, i,
+					p.getArgumentClasses().length);
+			i += p.getArgumentClasses().length;
+		}
+		
+		return result;
 	}
 
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator)
 	 */
 	@Override
-	public Supplier<? extends Exception> getProblem(CharacterIterator data, Invocation inv) {
+	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
 		Supplier<? extends Exception> problem = null;
 		Supplier<? extends Exception> firstProblem = null;
 		
@@ -77,70 +99,51 @@ public class ParserContainerVariable extends Parser {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#matches(java.text.CharacterIterator)
 	 */
 	@Override
-	public boolean matches(CharacterIterator data) {
-		int index = data.getIndex();
-		
-		for (Parser item : items) {
-			if (item.matches(data)) {
-				return true;
-			} else {
-				data.setIndex(index);
-				continue;
-			}
-		}
-		
-		return false;
+	public boolean matches(CharacterIterator data, AutoInvocation inv) {
+		int var = inv.getApproachData(this, Integer.class);
+		return items[var].matches(data, inv);
 	}
 
 	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#parse(java.text.CharacterIterator, java.util.function.Consumer)
+	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertParsed(java.text.CharacterIterator, java.util.function.Consumer)
 	 */
 	@Override
-	public void parse(CharacterIterator data, Consumer<Object> output) {
-		int index = data.getIndex();
+	public void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output) {
+		int var = inv.getApproachData(this, Integer.class);
 		
-		int i;
-		for (i = 0; i < items.length; ++i) {
-			boolean matches = items[i].matches(data);
-			data.setIndex(index);
-			
-			if (matches) {
-				output.accept(true);
-				items[i].parse(data, output);
-				i++;
-				break;
-			} else {
+		for (int i = 0; i < items.length; ++i) {
+			if (i != var) {
 				output.accept(false);
 				items[i].insertEmpty(output);
-				continue;
+			} else {
+				output.accept(true);
+				items[i].insertParsed(data, inv, output);
+			}
+		}
+	}
+	
+	@Override
+	public boolean selectNextApproach(AutoInvocation inv) {
+		int var = inv.getApproachData(this, Integer.class);
+		
+		if (!items[var].selectNextApproach(inv)) {
+			var++;
+			
+			if (var == items.length) {
+				return false;
+			} else {
+				inv.setApproachData(this, var);
 			}
 		}
 		
-		for (; i < items.length; ++i) {
-			output.accept(false);
-			items[i].insertEmpty(output);
-		}
+		return true;
 	}
 	
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertEmpty(java.util.function.Consumer)
-	 */
 	@Override
-	public void insertEmpty(Consumer<Object> output) {
+	public void resetApproach(AutoInvocation inv) {
+		inv.setApproachData(this, 0);
 		for (Parser item : items) {
-			output.accept(false);
-			item.insertEmpty(output);
-		}
-	}
-	
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertArgumentClasses(java.util.function.Consumer)
-	 */
-	@Override
-	public void insertArgumentClasses(Consumer<Class<?>> output) {
-		for (Parser item : items) {
-			output.accept(Boolean.TYPE);
-			item.insertArgumentClasses(output);
+			item.resetApproach(inv);
 		}
 	}
 	

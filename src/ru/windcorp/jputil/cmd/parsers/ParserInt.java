@@ -34,94 +34,42 @@ import java.text.CharacterIterator;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import ru.windcorp.jputil.cmd.Invocation;
+import ru.windcorp.jputil.cmd.AutoCommand.AutoInvocation;
 
 public class ParserInt extends Parser {
 
 	public ParserInt(String id) {
-		super(id);
+		super(id, Integer.TYPE);
 	}
 
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.tge2.util.ncmd.Invocation)
 	 */
 	@Override
-	public Supplier<Exception> getProblem(CharacterIterator data, Invocation inv) {
+	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
+		if (matchOrReset(data, inv)) return null;
+		
 		char[] chars = nextWord(data);
-		if (!isInt(chars)) {
-			return () -> {
-				return new NumberFormatException(inv.getContext().translate("auto.int.notInt", "\"%1$s\" is not an int", new String(chars)));
-			};
-		} else return null;
+		if (chars.length == 0) return argNotFound(inv);
+		return () -> new NumberFormatException(inv.getContext().translate("auto.int.notInt", "\"%1$s\" is not an int", new String(chars)));
 	}
 
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#matches(java.text.CharacterIterator)
 	 */
 	@Override
-	public boolean matches(CharacterIterator data) {
-		return isInt(nextWord(data));
-	}
-	
-	private static boolean isInt(char[] chars) {
-		long result = 0;
-		boolean isPositive = true;
-		
-		if (chars.length == 0) {
-			return false;
-		}
-		
-		int i = 0;
-		if (chars[0] == '-') {
-			isPositive = false;
-			i++;
-		} else if (chars[0] == '+') {
-			i++;
-		}
-		
-		for (; i < chars.length; ++i) {
-			if (chars[i] < '0' || chars[i] > '9') {
-				return false;
-			}
-			result = result * 10 + (chars[i] - '0');
-			if (isPositive) {
-				if (result > Integer.MAX_VALUE) return false;
-			} else {
-				if (-result < Integer.MIN_VALUE) return false;
-			}
-		}
-		
-		return true;
+	public boolean matches(CharacterIterator data, AutoInvocation inv) {
+		skipWhitespace(data);
+		return matchInt(data);
 	}
 
 	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#parse(java.text.CharacterIterator, java.util.function.Consumer)
+	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertParsed(java.text.CharacterIterator, java.util.function.Consumer)
 	 */
 	@Override
-	public void parse(CharacterIterator data, Consumer<Object> output) {
-		char[] chars = nextWord(data);
-		
-		int result = 0;
-		int i = 0;
-		
-		if (chars[0] == '-') {
-			for (i = 1; i < chars.length; ++i) result = result * 10 - (chars[i] - '0');
-		} else {
-			if (chars[0] == '+') i++;
-			for (; i < chars.length; ++i) result = result * 10 + (chars[i] - '0');
-		}
-		
-		
-		output.accept(result);
-		return;
-	}
-
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertArgumentClasses(java.util.function.Consumer)
-	 */
-	@Override
-	public void insertArgumentClasses(Consumer<Class<?>> output) {
-		output.accept(Integer.TYPE);
+	public void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output) {
+		skipWhitespace(data);
+		output.accept(readInt(data));
 	}
 
 }

@@ -34,17 +34,15 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.text.CharacterIterator;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import ru.windcorp.jputil.PrimitiveUtil;
 import ru.windcorp.jputil.chars.FancyCharacterIterator;
 import ru.windcorp.jputil.chars.StringUtil;
 import ru.windcorp.jputil.cmd.parsers.Parser;
-import ru.windcorp.jputil.cmd.parsers.ParserEnd;
 import ru.windcorp.jputil.cmd.parsers.Parsers;
 import ru.windcorp.jputil.cmd.parsers.SyntaxFormatter;
 import ru.windcorp.jputil.functions.ThrowingBiConsumer;
@@ -54,6 +52,41 @@ public class AutoCommand extends Command {
 	@FunctionalInterface
 	public static interface Action extends ThrowingBiConsumer<Invocation, Object[], CommandExceptions> {
 		// Alias
+	}
+	
+	public static class AutoInvocation extends Invocation {
+		
+		private final Map<Parser, Object> approachData = new HashMap<>();
+		
+		public AutoInvocation(Invocation inv, Parser rootParser) {
+			super(
+					inv.getContext(),
+					inv.getFullCommand(),
+					inv.getRunner(),
+					inv.getParent(),
+					inv.getCurrent(),
+					inv.getArgs()
+			);
+			
+			rootParser.resetApproach(this);
+		}
+		
+		/**
+		 * @see ru.windcorp.jputil.cmd.Invocation#getCurrent()
+		 */
+		@Override
+		public AutoCommand getCurrent() {
+			return (AutoCommand) super.getCurrent();
+		}
+		
+		public <T> T getApproachData(Parser parser, Class<T> clazz) {
+			return clazz.cast(approachData.get(parser));
+		}
+		
+		public void setApproachData(Parser parser, Object data) {
+			approachData.put(parser, data);
+		}
+		
 	}
 
 	private final Parser parser;
@@ -71,31 +104,6 @@ public class AutoCommand extends Command {
 		this.action = action;
 	}
 	
-	private static final Map<Class<?>, Class<?>> PRIMITIVE_TO_BOXED = new HashMap<>();
-	private static final Map<Class<?>, Object> PRIMITIVE_TO_NULL = new HashMap<>();
-	
-	static {
-		for (Class<?> boxed : new Class<?>[] {
-			Boolean.class, Byte.class, Short.class, Character.class,
-			Integer.class, Long.class, Float.class, Double.class
-		}) {
-			try {
-				PRIMITIVE_TO_BOXED.put((Class<?>) boxed.getField("TYPE").get(null), boxed);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
-		
-		PRIMITIVE_TO_NULL.put(Boolean.TYPE,		Boolean.FALSE);
-		PRIMITIVE_TO_NULL.put(Byte.TYPE,		Byte.valueOf((byte) 0));
-		PRIMITIVE_TO_NULL.put(Short.TYPE,		Short.valueOf((short) 0));
-		PRIMITIVE_TO_NULL.put(Integer.TYPE,		Integer.valueOf(0));
-		PRIMITIVE_TO_NULL.put(Long.TYPE,		Long.valueOf(0));
-		PRIMITIVE_TO_NULL.put(Float.TYPE,		Float.valueOf(Float.NaN));
-		PRIMITIVE_TO_NULL.put(Double.TYPE,		Double.valueOf(Double.NaN));
-		PRIMITIVE_TO_NULL.put(Character.TYPE,	Character.valueOf('\uFFFF'));
-	}
-	
 	protected class ParameterFiller implements Consumer<Object> {
 		
 		private final Object[] params;
@@ -110,7 +118,7 @@ public class AutoCommand extends Command {
 			Class<?> c = parameterTypes[index];
 			if (obj != null) {
 				if (c.isPrimitive()) {
-					c = PRIMITIVE_TO_BOXED.get(c);
+					c = PrimitiveUtil.getBoxedClass(c);
 				}
 				
 				if (!c.isInstance(obj)) {
@@ -122,7 +130,7 @@ public class AutoCommand extends Command {
 			} else if (!c.isPrimitive()) {
 				params[index] = null;
 			} else {
-				params[index] = PRIMITIVE_TO_NULL.get(c);
+				params[index] = PrimitiveUtil.getPrimitiveNull(c);
 			}
 			index++;
 		}
@@ -133,32 +141,47 @@ public class AutoCommand extends Command {
 	 * @see ru.windcorp.jputil.cmd.Command#run(ru.windcorp.jputil.cmd.Invocation)
 	 */
 	@Override
-	public void run(Invocation inv) throws CommandExceptions {
+	public void run(Invocation givenInv) throws CommandExceptions {
+		AutoInvocation inv = new AutoInvocation(givenInv, parser);
 		CharacterIterator data = new FancyCharacterIterator(inv.getArgs());
 		final Object[] params = new Object[parameterTypes.length];
 		
-		if (!parser.matches(data)) {
-			data.first();
-			Exception problem = parser.getProblem(data, inv).get();
+		// Find an appropriate approach or determine invalid syntax
+		
+		{
+			boolean appropriateApproachFound = false;
 			
-			if (problem instanceof CommandSyntaxException) {
-				throw (CommandSyntaxException) problem;
+			do {
+				boolean matches = parser.matches(data, inv);
+				data.first();
+				
+				if (matches) {
+					appropriateApproachFound = true;
+					break;
+				}
+			} while (parser.selectNextApproach(inv));
+			
+			if (!appropriateApproachFound) {
+				parser.resetApproach(inv);
+				Exception problem = parser.getProblem(data, inv).get();
+				
+				if (problem instanceof CommandSyntaxException) {
+					throw (CommandSyntaxException) problem;
+				}
+				
+				throw new CommandSyntaxException(inv, problem.getLocalizedMessage(), problem);
 			}
-			
-			throw new CommandSyntaxException(inv, problem.getLocalizedMessage(), problem);
 		}
-		data.first();
+		
+		// Parse and collect arguments
 		
 		Consumer<Object> accepter = new ParameterFiller(params);
-		parser.parse(data, accepter);
+		parser.insertParsed(data, inv, accepter);
 		
-		int index = data.getIndex();
-		if (!ParserEnd.INST.matches(data)) {
-			data.setIndex(index);
-			throw ParserEnd.INST.getProblem(data, inv).get();
-		}
-		
+		// Provide the invocation object
 		params[0] = inv;
+		
+		// Run the action
 		this.action.accept(inv, params);
 	}
 	
@@ -214,12 +237,12 @@ public class AutoCommand extends Command {
 			if (this.syntax == null) throw new IllegalArgumentException("Syntax is not set");
 			if (this.description == null) throw new IllegalArgumentException("Description is not set");
 			
-			Class<?>[] parameterTypes; {
-				List<Class<?>> parameterTypeList = new ArrayList<>();
-				parameterTypeList.add(Invocation.class);
-				parser.insertArgumentClasses(parameterTypeList::add);
-				parameterTypes = parameterTypeList.toArray(new Class<?>[0]);
-			}
+			Class<?>[] parameterTypes = new Class<?>[parser.getArgumentClasses().length + 1];
+			parameterTypes[0] = Invocation.class;
+			System.arraycopy(
+					parser.getArgumentClasses(), 0,
+					parameterTypes, 1,
+					parser.getArgumentClasses().length);
 			
 			if (action == null) {
 				assert methodInst != null && methodName != null : "Action nor method lookup arguments are set";
@@ -238,11 +261,15 @@ public class AutoCommand extends Command {
 		}
 		
 		public AutoCommand parser(String syntax, SyntaxFormatter formatter) {
-			return parser(Parsers.createParser(syntax), formatter);
+			return parser(createParser(syntax), formatter);
 		}
 		
 		public AutoCommand parser(String syntax) {
-			return parser(Parsers.createParser(syntax));
+			return parser(createParser(syntax));
+		}
+		
+		private static Parser createParser(String syntax) {
+			return Parsers.appendEndCheck(Parsers.createParser(syntax));
 		}
 		
 		private static Action wrapReflection(Method method, Object inst) {

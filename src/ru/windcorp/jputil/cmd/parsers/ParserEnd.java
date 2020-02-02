@@ -34,19 +34,19 @@ import java.text.CharacterIterator;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import ru.windcorp.jputil.cmd.AutoCommand.AutoInvocation;
 import ru.windcorp.jputil.cmd.CommandSyntaxException;
-import ru.windcorp.jputil.cmd.Invocation;
 
 public class ParserEnd extends Parser {
 	
 	public static final ParserEnd INST = new ParserEnd();
 
 	public ParserEnd() {
-		super("End");
+		super("End", new Class<?>[0]);
 	}
 
 	@Override
-	public Supplier<CommandSyntaxException> getProblem(CharacterIterator data, Invocation inv) {
+	public Supplier<CommandSyntaxException> getProblem(CharacterIterator data, AutoInvocation inv) {
 		skipWhitespace(data);
 		if (data.getIndex() < data.getEndIndex()) {
 			char[] chars = new char[data.getEndIndex() - data.getIndex()];
@@ -72,24 +72,16 @@ public class ParserEnd extends Parser {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#matches(java.text.CharacterIterator)
 	 */
 	@Override
-	public boolean matches(CharacterIterator data) {
+	public boolean matches(CharacterIterator data, AutoInvocation inv) {
 		skipWhitespace(data);
 		return data.getIndex() >= data.getEndIndex();
 	}
 
 	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#parse(java.text.CharacterIterator, java.util.function.Consumer)
+	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertParsed(java.text.CharacterIterator, java.util.function.Consumer)
 	 */
 	@Override
-	public void parse(CharacterIterator data, Consumer<Object> output) {
-		// Do nothing
-	}
-
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertArgumentClasses(java.util.function.Consumer)
-	 */
-	@Override
-	public void insertArgumentClasses(Consumer<Class<?>> output) {
+	public void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output) {
 		// Do nothing
 	}
 	

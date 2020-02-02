@@ -34,20 +34,20 @@ import java.text.CharacterIterator;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import ru.windcorp.jputil.cmd.Invocation;
+import ru.windcorp.jputil.cmd.AutoCommand.AutoInvocation;
 import ru.windcorp.jputil.cmd.parsers.Parser.NoBrackets;
 
 public class ParserTrailingString extends Parser implements NoBrackets {
 
 	public ParserTrailingString(String id) {
-		super(id);
+		super(id, String.class);
 	}
 
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.tge2.util.ncmd.Invocation)
 	 */
 	@Override
-	public Supplier<Exception> getProblem(CharacterIterator data, Invocation inv) {
+	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
 		return null;
 	}
 
@@ -55,16 +55,16 @@ public class ParserTrailingString extends Parser implements NoBrackets {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#matches(java.text.CharacterIterator)
 	 */
 	@Override
-	public boolean matches(CharacterIterator data) {
+	public boolean matches(CharacterIterator data, AutoInvocation inv) {
 		data.setIndex(data.getEndIndex());
 		return true;
 	}
 
 	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#parse(java.text.CharacterIterator, java.util.function.Consumer)
+	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertParsed(java.text.CharacterIterator, java.util.function.Consumer)
 	 */
 	@Override
-	public void parse(CharacterIterator data, Consumer<Object> output) {
+	public void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output) {
 		skipWhitespace(data);
 		StringBuilder sb = new StringBuilder();
 		int lastNonWhitespace = 0;
@@ -78,19 +78,12 @@ public class ParserTrailingString extends Parser implements NoBrackets {
 				}
 				sb.append(c);
 				c = data.next();
+				i++;
 			}
 		}
 		
 		sb.setLength(lastNonWhitespace);
 		output.accept(sb.toString());
-	}
-
-	/**
-	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertArgumentClasses(java.util.function.Consumer)
-	 */
-	@Override
-	public void insertArgumentClasses(Consumer<Class<?>> output) {
-		output.accept(String.class);
 	}
 	
 	/**

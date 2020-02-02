@@ -37,6 +37,7 @@ import java.util.function.Supplier;
 import ru.windcorp.jputil.chars.EscapeException;
 import ru.windcorp.jputil.chars.Escaper;
 import ru.windcorp.jputil.chars.IndentedStringBuilder;
+import ru.windcorp.jputil.cmd.AutoCommand.AutoInvocation;
 import ru.windcorp.jputil.cmd.CommandSyntaxException;
 import ru.windcorp.jputil.cmd.Invocation;
 
@@ -49,26 +50,46 @@ public abstract class Parser {
 	private static final Escaper ESCAPER = Escaper.JAVA;
 	
 	private final String id;
+	private final Class<?>[] argumentClasses;
+	
 	private String typeAsDeclared = null;
 	
-	public Parser(String id) {
+	public Parser(String id, Class<?>... argumentClasses) {
 		this.id = id;
+		this.argumentClasses = argumentClasses;
 	}
 	
-	public abstract Supplier<? extends Exception> getProblem(CharacterIterator data, Invocation inv);
-	public abstract boolean matches(CharacterIterator data);
-	public abstract void parse(CharacterIterator data, Consumer<Object> output);
-	public abstract void insertArgumentClasses(Consumer<Class<?>> output);
+	/**
+	 * @return <code>true</true> is <code>data</code>
+	 */
+	public abstract boolean matches(CharacterIterator data, AutoInvocation inv);
 	
-	private transient Integer argumentCount = null;
-	public void insertEmpty(Consumer<Object> output) {
-		if (argumentCount == null) {
-			int[] counter = new int[1];
-			insertArgumentClasses(clazz -> counter[0]++);
-			argumentCount = counter[0];
-		}
-		
-		for (int i = 0; i < argumentCount; ++i) output.accept(null);
+	
+	public abstract Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv);
+	public abstract void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output);
+	
+	public Class<?>[] getArgumentClasses() {
+		return argumentClasses;
+	}
+	
+	/**
+	 * Selects the next approach if possible.
+	 * @return {@code false} if next approach could not be selected, {@code true} otherwise 
+	 */
+	public boolean selectNextApproach(AutoInvocation inv) {
+		// Do nothing
+		return false;
+	}
+	
+	/**
+	 * Selects the first approach in this parser and all child parsers.
+	 */
+	public void resetApproach(AutoInvocation inv) {
+		// Do nothing
+	}
+	
+	public final void insertEmpty(Consumer<Object> output) {
+		for (int i = 0; i < argumentClasses.length; ++i) output.accept(null);
 	}
 	
 	protected void skipWhitespace(CharacterIterator data) {
@@ -120,8 +141,59 @@ public abstract class Parser {
 		return readWord(data);
 	}
 	
+	protected int readInt(CharacterIterator data) {
+		int result = 0;
+		
+		if (data.current() == '-') {
+			while (data.next() >= '0' && data.current() <= '9') result = result * 10 - (data.current() - '0');
+		} else {
+			if (data.current() == '+') data.next();
+			while (data.current() >= '0' && data.current() <= '9') {
+				result = result * 10 + (data.current() - '0');
+				data.next();
+			}
+		}
+		
+		return result;
+	}
+	
+	protected boolean matchInt(CharacterIterator data) {
+		long result = 0;
+		boolean isPositive = true;
+		
+		if (data.current() == '-') {
+			isPositive = false;
+			data.next();
+		} else if (data.current() == '+') {
+			data.next();
+		}
+		
+		boolean hasAtLeastOneDigit = data.current() >= '0' && data.current() <= '9';
+		if (hasAtLeastOneDigit) do {
+			result = result * 10 + (data.current() - '0');
+			if (isPositive) {
+				if (result > Integer.MAX_VALUE) return false;
+			} else {
+				if (-result < Integer.MIN_VALUE) return false;
+			}
+		} while (data.next() >= '0' && data.current() <= '9');
+		else return false;
+		
+		return data.current() == CharacterIterator.DONE || Character.isWhitespace(data.current());
+	}
+	
 	protected Supplier<CommandSyntaxException> argNotFound(Invocation inv) {
 		return () -> new CommandSyntaxException(inv, inv.getContext().translate("auto.generic.argNotFound", "Argument %1$s not found", getId()));
+	}
+	
+	public boolean matchOrReset(CharacterIterator data, AutoInvocation inv) {
+		int index = data.getIndex();
+		if (matches(data, inv)) {
+			return true;
+		} else {
+			data.setIndex(index);
+			return false;
+		}
 	}
 	
 	/**
