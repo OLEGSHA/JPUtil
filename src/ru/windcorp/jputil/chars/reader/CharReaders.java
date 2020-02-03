@@ -84,7 +84,9 @@ public class CharReaders {
 		return new BufferedCharReader() {
 			@Override
 			protected char pullChar() {
-				return it.next();
+				char result = it.current();
+				it.next();
+				return result;
 			}
 		};
 	}

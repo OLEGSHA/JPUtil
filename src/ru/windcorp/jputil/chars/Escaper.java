@@ -423,7 +423,13 @@ public class Escaper {
 //	}
 	
 	public char[] unescape(CharacterIterator src, char until) throws EscapeException {
-		return unescape(CharReaders.wrap(src), -1, CharPredicate.forChar(until));
+		int index = src.getIndex();
+		CharReader reader = CharReaders.wrap(src);
+		
+		char[] result = unescape(reader, -1, CharPredicate.forChar(until));
+		
+		src.setIndex(index + reader.getPosition());
+		return result;
 	}
 	
 //	public char[] unescape(CharacterIterator src) throws EscapeException {
