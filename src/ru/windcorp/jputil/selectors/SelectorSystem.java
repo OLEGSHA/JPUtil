@@ -17,8 +17,9 @@ package ru.windcorp.jputil.selectors;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.Iterator;
-import java.util.Stack;
+import java.util.LinkedList;
 import java.util.function.Predicate;
 
 import ru.windcorp.jputil.SyntaxException;
@@ -29,15 +30,15 @@ public class SelectorSystem<T> {
 	public static final char EXPRESSION_OPEN = '(';
 	public static final char EXPRESSION_CLOSE = ')';
 	
-	private final Collection<Selector<? super T>> selectors =
-			Collections.synchronizedCollection(new ArrayList<Selector<? super T>>());
+	private final Collection<Selector<T>> selectors =
+			Collections.synchronizedCollection(new ArrayList<Selector<T>>());
 	
 	private final Collection<SelectorOperator> operators =
 			Collections.synchronizedCollection(new ArrayList<SelectorOperator>());
 	
 	private String stackPrefix = null;
 	
-	public Collection<Selector<? super T>> getSelectors() {
+	public Collection<Selector<T>> getSelectors() {
 		return this.selectors;
 	}
 	
@@ -54,7 +55,7 @@ public class SelectorSystem<T> {
 		return this;
 	}
 
-	public SelectorSystem<T> add(Selector<? super T> selector) {
+	public SelectorSystem<T> add(Selector<T> selector) {
 		getSelectors().add(selector);
 		return this;
 	}
@@ -64,15 +65,15 @@ public class SelectorSystem<T> {
 		return this;
 	}
 
-	public Predicate<? super T> parse(Iterator<String> tokens) throws SyntaxException {
-		PeekingIterator<String> peeker = new PeekingIterator<String>(tokens);
+	public Predicate<T> parse(Iterator<String> tokens) throws SyntaxException {
+		PeekingIterator<String> peeker = new PeekingIterator<>(tokens);
 		
 		if (getStackPrefix() != null && peeker.hasNext() && getStackPrefix().equals(peeker.peek())) {
 			peeker.next();
 			return parseStack(peeker);
 		}
 		
-		Stack<Predicate<? super T>> stack = new Stack<Predicate<? super T>>();
+		Deque<Predicate<T>> stack = new LinkedList<>();
 
 		synchronized (getSelectorOperators()) {
 			synchronized (getSelectors()) {
@@ -87,7 +88,7 @@ public class SelectorSystem<T> {
 		return compress(stack);
 	}
 	
-	private void parseToken(Stack<Predicate<? super T>> stack, Iterator<String> tokens) throws SyntaxException {
+	private void parseToken(Deque<Predicate<T>> stack, Iterator<String> tokens) throws SyntaxException {
 		
 		if (!tokens.hasNext()) {
 			throw new SyntaxException("Not enough tokens");
@@ -102,8 +103,8 @@ public class SelectorSystem<T> {
 			}
 		}
 		
-		Selector<? super T> tmp;
-		for (Selector<? super T> selector : getSelectors()) {
+		Selector<T> tmp;
+		for (Selector<T> selector : getSelectors()) {
 			if ((tmp = selector.derive(token)) != null) {
 				stack.push(tmp);
 				return;
@@ -113,10 +114,9 @@ public class SelectorSystem<T> {
 		throw new SyntaxException("Unknown token \"" + token + "\"");
 	}
 	
-	public Predicate<? super T> parseStack(Iterator<String> tokens) throws SyntaxException {
-		Stack<Predicate<? super T>> stack = new Stack<Predicate<? super T>>();
+	public Predicate<T> parseStack(Iterator<String> tokens) throws SyntaxException {
+		Deque<Predicate<T>> stack = new LinkedList<>();
 		
-		Selector<? super T> tmp;
 		String token;
 		
 		synchronized (getSelectorOperators()) {
@@ -133,7 +133,8 @@ public class SelectorSystem<T> {
 						}
 					}
 					
-					for (Selector<? super T> selector : getSelectors()) {
+					for (Selector<T> selector : getSelectors()) {
+						Selector<T> tmp;
 						if ((tmp = selector.derive(token)) != null) {
 							stack.push(tmp);
 							continue tokenCycle;
@@ -149,7 +150,7 @@ public class SelectorSystem<T> {
 		return compress(stack);
 	}
 	
-	private Predicate<? super T> compress(Stack<Predicate<? super T>> stack) throws SyntaxException {
+	private Predicate<T> compress(Deque<Predicate<T>> stack) throws SyntaxException {
 		if (stack.isEmpty()) {
 			throw new SyntaxException("Stack is empty");
 		}

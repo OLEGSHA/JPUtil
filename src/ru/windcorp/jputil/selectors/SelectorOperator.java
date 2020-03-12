@@ -14,12 +14,12 @@
  */
 package ru.windcorp.jputil.selectors;
 
-import java.util.Stack;
+import java.util.Deque;
 import java.util.function.Predicate;
 
 public interface SelectorOperator {
 	
-	public <T> void process(Stack<Predicate<? super T>> stack);
+	public <T> void process(Deque<Predicate<T>> stack);
 	
 	public boolean matchesName(String name);
 

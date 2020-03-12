@@ -53,7 +53,7 @@ public class Reiterator<E> implements Iterable<E> {
 	}
 
 	private final Iterator<E> source;
-	private final ArrayList<E> data = new ArrayList<E>();
+	private final ArrayList<E> data = new ArrayList<>();
 	
 	public Reiterator(Iterator<E> source) {
 		this.source = source;

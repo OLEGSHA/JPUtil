@@ -19,6 +19,7 @@ import java.io.LineNumberReader;
 import java.io.Reader;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.IntSupplier;
 
 import ru.windcorp.jputil.chars.CharPredicate;
 import ru.windcorp.jputil.chars.StringUtil;
@@ -76,16 +77,14 @@ public class QCFGParser {
 			try {
 				InvalidSettingException.startParsing(name);
 				setter.set(value);
-				InvalidSettingException.endParsing();
 				isSet = true;
 			} catch (InvalidSettingException e) {
 				// Do nothing, rethrow
 				throw e;
 			} catch (RuntimeException e) {
 				throw new InvalidSettingException("Unexpected runtime exception", e);
-			} catch (Throwable e) {
+			} finally {
 				InvalidSettingException.endParsing();
-				throw e;
 			}
 		}
 	}
@@ -193,123 +192,194 @@ public class QCFGParser {
 		return this;
 	}
 	
-	/*
-	 * Modes
-	 */
-	private static final int
-			INTERSTATEMENT = 0,
-			READING_NAME = 1,
-			TRIMMING_NAME = 2,
-			TRIMMING_VALUE = 3,
-			READING_VALUE = 4,
-			COMMENT = 5;
+	private enum Mode {
+		INTERSTATEMENT,
+		READING_NAME,
+		TRIMMING_NAME,
+		TRIMMING_VALUE,
+		READING_VALUE,
+		COMMENT;
+		
+		private ModeParser parser = null;
+		
+		ModeParser getParser() {
+			return parser;
+		}
+	}
 	
-	public void parse(Reader reader) throws IOException, QCFGException, InvalidSettingException {
-		LineNumberReader lineReader = new LineNumberReader(reader);
+	@FunctionalInterface
+	private static interface ModeParser {
+		Mode process(QCFGParser parser, Context context) throws QCFGException;
+	}
+	
+	private static class Context {
 		char current;
-		
-		int mode = INTERSTATEMENT;
-		StringBuilder sb = new StringBuilder();
-		
-		String name = null;
 
-		int read = lineReader.read();
-		if (read != -1) {
-			current = (char) read;
-			
-			processing:
-			while (true) {
-				switch (mode) {
-				case INTERSTATEMENT:
-					if (getCommentStart() == current) {
-						mode = COMMENT;
-						break;
-					}
-					if (!getInterSep().test(current)) {
-						mode = READING_NAME;
-						continue processing;
-					}
-					break;
-					
-				case READING_NAME:
-					if (getTrimName().test(current)) {
-						if (sb.length() == 0) {
-							throw new QCFGException("[Line " + lineReader.getLineNumber() + "] Empty name");
-						}
-						name = StringUtil.resetStringBuilder(sb);
-						mode = TRIMMING_NAME;
-						break;
-					}
-					if (getIntraSep() == current) {
-						if (sb.length() == 0) {
-							throw new QCFGException("[Line " + lineReader.getLineNumber() + "] Empty name");
-						}
-						name = StringUtil.resetStringBuilder(sb);
-						mode = TRIMMING_VALUE;
-						break;
-					}
-					sb.append(current);
-					break;
-					
-				case TRIMMING_NAME:
-					if (getIntraSep() == current) {
-						mode = TRIMMING_VALUE;
-						break;
-					}
-					if (!getTrimName().test(current)) {
-						throw new QCFGException("[Line " + lineReader.getLineNumber() + "] Illegal characters after name " + name);
-					}
-					break;
-					
-				case TRIMMING_VALUE:
-					if (!getTrimValue().test(current)) {
-						mode = READING_VALUE;
-						continue processing;
-					}
-					break;
-					
-				case READING_VALUE:
-					if (getInterSep().test(current)) {
-						Setting setting = settings.get(name);
-						if (!ignoreUnknown && setting == null) {
-							throw new QCFGException("[Line " + lineReader.getLineNumber() + "] Unknown setting \"" + name + "\"");
-						}
-						
-						setting.set(StringUtil.resetStringBuilder(sb));
-						
-						mode = INTERSTATEMENT;
-						break;
-					}
-					sb.append(current);
-					break;
-					
-				case COMMENT:
-					if (getCommentEnd().test(current)) {
-						mode = INTERSTATEMENT;
-						break;
-					}
-					break;
-				}
-				
-				read = lineReader.read();
-				if (read == -1) {
-					break;
-				}
-				current = (char) read;
-			}
-			
-			if (mode == READING_NAME || mode == TRIMMING_NAME) {
-				throw new QCFGException("[Line " + lineReader.getLineNumber() + "] Last statement is incomplete: value missing");
-			} else if (mode == TRIMMING_VALUE || mode == READING_VALUE) {
-				Setting setting = settings.get(name);
-				if (!ignoreUnknown && setting == null) {
-					throw new QCFGException("[Line " + lineReader.getLineNumber() + "] Unknown setting \"" + name + "\"");
-				}
-				
-				setting.set(sb.toString());
-			}
+		private String name = null;
+		private final StringBuilder sb = new StringBuilder();
+		private boolean processAgain = false;
+		
+		private final IntSupplier lineNumberGetter;
+		
+		Context(IntSupplier lineNumberGetter) {
+			this.lineNumberGetter = lineNumberGetter;
 		}
 		
+		void processAgain() {
+			processAgain = true;
+		}
+
+		boolean getAndResetProcessAgain() {
+			boolean result = processAgain;
+			processAgain = false;
+			return result;
+		}
+		
+		int getLineNumber() {
+			return lineNumberGetter.getAsInt();
+		}
+		
+		void appendToBuffer() {
+			sb.append(current);
+		}
+		
+		boolean isBufferEmpty() {
+			return sb.length() == 0;
+		}
+		
+		String getAndResetBuffer() {
+			return StringUtil.resetStringBuilder(sb);
+		}
+		
+		String getName() {
+			return name;
+		}
+		
+		void setNameToBuffer() {
+			this.name = getAndResetBuffer();
+		}
+	}
+	
+	static {
+		Mode.INTERSTATEMENT.parser = (parser, context) -> {
+			
+			if (parser.getCommentStart() == context.current) {
+				return Mode.COMMENT;
+			}
+			if (!parser.getInterSep().test(context.current)) {
+				context.processAgain();
+				return Mode.READING_NAME;
+			}
+			return Mode.INTERSTATEMENT;
+			
+		};
+		
+		Mode.READING_NAME.parser = (parser, context) -> {
+			
+			if (
+					parser.getTrimName().test(context.current)
+					||
+					parser.getIntraSep() == context.current
+			) {
+				if (context.isBufferEmpty()) {
+					throw new QCFGException(context.getLineNumber(), "Empty name");
+				}
+				context.setNameToBuffer();
+				
+				return (parser.getIntraSep() == context.current)
+					? Mode.TRIMMING_VALUE
+					: Mode.TRIMMING_NAME;
+			}
+			
+			context.appendToBuffer();
+			return Mode.READING_NAME;
+			
+		};
+		
+		Mode.TRIMMING_NAME.parser = (parser, context) -> {
+
+			if (parser.getIntraSep() == context.current) {
+				return Mode.TRIMMING_VALUE;
+			}
+			if (!parser.getTrimName().test(context.current)) {
+				throw new QCFGException(context.getLineNumber(), "Illegal characters after name " + context.getName());
+			}
+			
+			return Mode.TRIMMING_NAME;
+			
+		};
+		
+		Mode.TRIMMING_VALUE.parser = (parser, context) -> {
+
+			if (!parser.getTrimValue().test(context.current)) {
+				context.processAgain();
+				return Mode.READING_VALUE;
+			}
+			return Mode.TRIMMING_VALUE;
+			
+		};
+		
+		Mode.READING_VALUE.parser = (parser, context) -> {
+			
+			if (parser.getInterSep().test(context.current)) {
+				Setting setting = parser.settings.get(context.getName());
+				if (!parser.ignoreUnknown && setting == null) {
+					throw new QCFGException(context.getLineNumber(), "Unknown setting \"" + context.getName() + "\"");
+				}
+				
+				setting.set(context.getAndResetBuffer());
+				
+				return Mode.INTERSTATEMENT;
+			}
+			context.appendToBuffer();
+			return Mode.READING_VALUE;
+			
+		};
+		
+		Mode.COMMENT.parser = (parser, context) -> {
+			
+			if (parser.getCommentEnd().test(context.current)) {
+				return Mode.INTERSTATEMENT;
+			}
+			return Mode.COMMENT;
+			
+		};
+	}
+	
+	public void parse(Reader reader) throws IOException, QCFGException {
+		LineNumberReader lineReader = new LineNumberReader(reader);
+		
+		Mode mode = Mode.INTERSTATEMENT;
+		Context context = new Context(lineReader::getLineNumber);
+		
+		while (true) {
+			if (!context.getAndResetProcessAgain()) {
+				int read = lineReader.read();
+				if (read == -1) break;
+				context.current = (char) read;
+			}
+			
+			mode = mode.getParser().process(this, context);
+		}
+			
+		handleEOF(mode, context);
+		checkRequiredSettings();
+	}
+
+	private void handleEOF(Mode mode, Context context) throws QCFGException {
+		if (mode == Mode.READING_NAME || mode == Mode.TRIMMING_NAME) {
+			throw new QCFGException(context.getLineNumber(), "Last statement is incomplete: value missing");
+		} else if (mode == Mode.TRIMMING_VALUE || mode == Mode.READING_VALUE) {
+			Setting setting = settings.get(context.getName());
+			if (!ignoreUnknown && setting == null) {
+				throw new QCFGException(context.getLineNumber(), "Unknown setting \"" + context.getName() + "\"");
+			}
+			
+			setting.set(context.getAndResetBuffer());
+		}
+	}
+	
+	private void checkRequiredSettings() throws QCFGException {
 		for (Setting setting : settings.values()) {
 			if (!setting.isSet && !setting.isOptional) {
 				throw new QCFGException("Setting \"" + setting.name + "\" not set");

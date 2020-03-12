@@ -18,6 +18,8 @@ import java.util.Scanner;
 
 public class QuickLangSetup {
 	
+	private QuickLangSetup() {}
+	
 	public static void setupLang(final ClassLoader loader, final String path) {
 		QLang.setLangSupplier(name -> loader.getResourceAsStream(path + "/" + name + ".lang"));
 		

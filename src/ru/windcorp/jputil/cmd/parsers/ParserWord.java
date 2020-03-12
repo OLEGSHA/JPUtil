@@ -46,7 +46,7 @@ public class ParserWord extends Parser {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.tge2.util.ncmd.Invocation)
 	 */
 	@Override
-	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
+	public Supplier<Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
 		if (nextWord(data).length == 0) {
 			return argNotFound(inv);
 		} else {
@@ -68,7 +68,6 @@ public class ParserWord extends Parser {
 	@Override
 	public void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output) {
 		output.accept(new String(nextWord(data)));
-		return;
 	}
 
 }

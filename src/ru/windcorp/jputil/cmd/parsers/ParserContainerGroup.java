@@ -70,8 +70,8 @@ public class ParserContainerGroup extends Parser {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator)
 	 */
 	@Override
-	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
-		Supplier<? extends Exception> problem = null;
+	public Supplier<Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
+		Supplier<Exception> problem = null;
 		
 		for (Parser item : items) {
 			problem = item.getProblem(data, inv);

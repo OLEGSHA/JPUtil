@@ -46,7 +46,7 @@ public class ParserEnd extends Parser {
 	}
 
 	@Override
-	public Supplier<CommandSyntaxException> getProblem(CharacterIterator data, AutoInvocation inv) {
+	public Supplier<Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
 		skipWhitespace(data);
 		if (data.getIndex() < data.getEndIndex()) {
 			char[] chars = new char[data.getEndIndex() - data.getIndex()];

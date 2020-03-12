@@ -26,15 +26,10 @@ public class TUITable {
 	private Object[] headers;
 	private final List<Object[]> data = Collections.synchronizedList(new LinkedList<Object[]>());
 	
-	private boolean drawGrid;
-	
-	public TUITable(boolean drawGrid, Object... headers) {
-		this.setDrawGrid(drawGrid);
-		this.headers = headers;
-	}
+	private boolean drawGrid = true;
 
 	public TUITable(Object... headers) {
-		this(true, headers);
+		this.headers = headers;
 	}
 	
 	public Object[] getHeaders() {
@@ -113,84 +108,102 @@ public class TUITable {
 	@Override
 	public synchronized String toString() {
 		synchronized (getData()) {
-			if (getColumns() == 0) {
-				return "";
-			}
+			if (getColumns() == 0) return "";
 			
 			String[] headers = new String[getColumns()];
-			boolean headersExist = false;
 			String[][] data = new String[getRows()][getColumns()];
 			int[] widths = new int[getColumns()];
 			
-			for (int i = 0; i < getColumns(); ++i) {
-				headers[i] = String.valueOf(getHeaders()[i]);
-				widths[i] = headers[i].length();
-				
-				if (widths[i] != 0) {
-					headersExist = true;
-				}
-			}
+			boolean headersExist = processHeaders(headers, widths);
 			
-			for (int row = 0; row < getRows(); ++row) {
-				Object[] rowObj = getData().get(row);
-				
-				for (int column = 0; column < getColumns(); ++column) {
-					data[row][column] = String.valueOf(rowObj[column]);
-					widths[column] = Math.max(widths[column], data[row][column].length());
-				}
-			}
+			prepareData(data, widths);
 			
 			StringBuilder sb = new StringBuilder();
 			
 			if (headersExist) {
-				sb.append(StringUtil.padToLeft(headers[0], widths[0]));
-				
-				for (int column = 1; column < getColumns(); ++column) {
-					if (getDrawGrid()) {
-						sb.append(" | ");
-					} else {
-						sb.append("  ");
-					}
-					sb.append(StringUtil.padToLeft(headers[column], widths[column]));
-				}
-
-				if (getDrawGrid()) {
-					sb.append('\n');
-					sb.append(StringUtil.sequence('-', widths[0]));
-				
-					for (int column = 1; column < getColumns(); ++column) {
-						sb.append("-+-");
-						sb.append(StringUtil.sequence('-', widths[column]));
-					}
-				}
+				writeHeaders(sb, headers, widths);
 			}
 			
-			for (int row = 0; row < data.length; ++row) {
-				if (row != 0 || headersExist) sb.append('\n');
-				
-				for (int column = 0; column < data[row].length; ++column) {
-					sb.append(StringUtil.padToLeft(data[row][column], widths[column]));
-					
-					if (column != data[0].length - 1) {
-						if (getDrawGrid()) {
-							sb.append(" | ");
-						} else {
-							sb.append("  ");
-						}
-					}
-				}
-			}
+			writeData(sb, data, widths, headersExist);
 			
 			return sb.toString();
 		}
 	}
 	
+	private boolean processHeaders(String[] headers, int[] widths) {
+		boolean headersExist = false;
+		
+		for (int i = 0; i < getColumns(); ++i) {
+			headers[i] = String.valueOf(getHeaders()[i]);
+			widths[i] = headers[i].length();
+			
+			if (widths[i] != 0) {
+				headersExist = true;
+			}
+		}
+		
+		return headersExist;
+	}
+
+	private void prepareData(String[][] data, int[] widths) {
+		for (int row = 0; row < getRows(); ++row) {
+			Object[] rowObj = getData().get(row);
+			
+			for (int column = 0; column < getColumns(); ++column) {
+				data[row][column] = String.valueOf(rowObj[column]);
+				widths[column] = Math.max(widths[column], data[row][column].length());
+			}
+		}
+	}
+
+	private void writeHeaders(StringBuilder sb, String[] headers, int[] widths) {
+		sb.append(StringUtil.padToLeft(headers[0], widths[0]));
+		
+		for (int column = 1; column < getColumns(); ++column) {
+			if (getDrawGrid()) {
+				sb.append(" | ");
+			} else {
+				sb.append("  ");
+			}
+			sb.append(StringUtil.padToLeft(headers[column], widths[column]));
+		}
+
+		if (getDrawGrid()) {
+			sb.append('\n');
+			sb.append(StringUtil.sequence('-', widths[0]));
+		
+			for (int column = 1; column < getColumns(); ++column) {
+				sb.append("-+-");
+				sb.append(StringUtil.sequence('-', widths[column]));
+			}
+		}
+	}
+
+	private void writeData(StringBuilder sb, String[][] data, int[] widths, boolean headersExist) {
+		for (int row = 0; row < data.length; ++row) {
+			if (row != 0 || headersExist) sb.append('\n');
+			
+			for (int column = 0; column < data[row].length; ++column) {
+				sb.append(StringUtil.padToLeft(data[row][column], widths[column]));
+				
+				if (column != data[0].length - 1) {
+					if (getDrawGrid()) {
+						sb.append(" | ");
+					} else {
+						sb.append("  ");
+					}
+				}
+			}
+		}
+	}
+
 	public boolean getDrawGrid() {
 		return drawGrid;
 	}
 
-	public void setDrawGrid(boolean drawGrid) {
+	public TUITable setDrawGrid(boolean drawGrid) {
 		this.drawGrid = drawGrid;
+		return this;
 	}
 
 }

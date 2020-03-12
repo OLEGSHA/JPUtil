@@ -28,6 +28,11 @@ import ru.windcorp.jputil.chars.Escaper;
  * @author Javapony
  *
  */
+
+// SonarLint: Constants should not be defined in interfaces (java:S1214)
+//   DONE is an essential part of the interface
+@SuppressWarnings("squid:S1214")
+
 public interface CharReader {
 
 	char DONE = '\uFFFF';

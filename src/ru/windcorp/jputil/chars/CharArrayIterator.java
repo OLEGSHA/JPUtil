@@ -16,7 +16,7 @@ package ru.windcorp.jputil.chars;
 
 import java.text.CharacterIterator;
 
-public class CharArrayIterator implements CharacterIterator, Cloneable {
+public class CharArrayIterator implements CharacterIterator {
 
 	private final char[] array;
 	private int pos;
@@ -104,11 +104,20 @@ public class CharArrayIterator implements CharacterIterator, Cloneable {
 		return pos;
 	}
 	
+//	@SuppressWarnings("all") Just STFU, this _is_ terrific
+	
+	// SonarLint: "clone" should not be overridden (java:S2975)
+	//   And I wouldn't have done that if only CharacterIterator had not required exception safety.
+	// SonarLint: "toString()" and "clone()" methods should not return null (java:S2225)
+	//   The clause is unreachable: CharacterArrayIterator implements Cloneable and superclass is Object.
+	@SuppressWarnings({"squid:S2975", "squid:S2225"})
+
 	@Override
 	public CharArrayIterator clone() {
 		try {
 			return (CharArrayIterator) super.clone();
 		} catch (CloneNotSupportedException cnse) {
+			// Impossible
 			return null;
 		}
 	}

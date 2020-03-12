@@ -33,6 +33,10 @@ public class QCFGException extends Exception {
 	public QCFGException(String message) {
 		super(message);
 	}
+	
+	public QCFGException(int lineNumber, String message) {
+		super("[Line " + lineNumber + "] " + message);
+	}
 
 	public QCFGException(Throwable cause) {
 		super(cause);

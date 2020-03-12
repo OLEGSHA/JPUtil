@@ -44,7 +44,7 @@ public interface CharPredicate {
 	}
 	
 	public static CharPredicate toChar(IntPredicate predicate) {
-		return c -> predicate.test(c);
+		return predicate::test;
 	}
 	
 	public static CharPredicate forArray(char... chars) {

@@ -27,6 +27,8 @@ import ru.windcorp.jputil.ArrayUtil;
  */
 public class CharConsumers {
 	
+	private CharConsumers() {}
+	
 	public static CharConsumer fillArray(char[] array, int offset, int length) {
 		return new ArrayFiller(array, offset, length);
 	}

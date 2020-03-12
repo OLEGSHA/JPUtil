@@ -70,9 +70,12 @@ public class CommandRegistry extends Command {
 			return;
 		}
 		
-		String name = null;
+		
+		String name;
 		String subArgs;
-		{
+		/* Determine name and subArgs */ {
+			name = null;
+			
 			StringBuilder sb = new StringBuilder();
 			int i;
 			
@@ -151,20 +154,24 @@ public class CommandRegistry extends Command {
 		return commandMap.containsKey(name.toLowerCase());
 	}
 	
+	// SonarLint: Getters and setters should access the expected fields (java:S4275)
+	//   commandsReadOnly is a view of commands and the fact that it is used is an implementation detail. 
+	@SuppressWarnings("squid:S4275")
+	
 	public SortedSet<Command> getCommands() {
-		return commandsReadOnly;
+		return commandsReadOnly; // Return read-only view
 	}
 	
 	public synchronized List<Command> getCommands(CommandRunner runner) {
-		List<Command> commands = new ArrayList<>();
+		List<Command> result = new ArrayList<>();
 			
 		for (Command c : getCommands()) {
 			if (c.canRun(runner) == null) {
-				commands.add(c);
+				result.add(c);
 			}
 		}
 		
-		return commands;
+		return result;
 	}
 
 }

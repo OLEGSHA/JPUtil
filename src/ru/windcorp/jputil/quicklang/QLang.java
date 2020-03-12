@@ -18,6 +18,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,6 +28,7 @@ import java.util.function.Function;
 import ru.windcorp.jputil.chars.CharPredicate;
 import ru.windcorp.jputil.chars.EscapeException;
 import ru.windcorp.jputil.chars.Escaper;
+import ru.windcorp.jputil.chars.UncheckedEscapeException;
 import ru.windcorp.jputil.chars.reader.CharReader;
 import ru.windcorp.jputil.chars.reader.CharReaders;
 
@@ -41,7 +43,7 @@ public class QLang {
 	private final String name;
 	private static final Escaper ESCAPER = Escaper.JAVA;
 
-	public synchronized static QLang getInstance(String name) {
+	public static synchronized QLang getInstance(String name) {
 		QLang result = LANGS.get(name);
 		
 		if (result != null) return result;
@@ -52,9 +54,9 @@ public class QLang {
 			LANGS.put(name, result);
 			return result;
 		} catch (IOException e) {
-			throw new RuntimeException(e);
+			throw new UncheckedIOException(e);
 		} catch (EscapeException e) {
-			throw new RuntimeException(e);
+			throw new UncheckedEscapeException(e);
 		}
 	}
 	
@@ -68,6 +70,8 @@ public class QLang {
 		CharReader in = CharReaders.wrap(reader);
 		
 		while (!in.isEnd()) {
+			if (in.hasErrored()) throw in.getLastException();
+			
 			if (in.current() == '#') {
 				in.skipLine();
 			} else {

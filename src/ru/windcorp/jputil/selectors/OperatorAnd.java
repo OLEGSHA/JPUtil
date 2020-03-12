@@ -14,7 +14,7 @@
  */
 package ru.windcorp.jputil.selectors;
 
-import java.util.Stack;
+import java.util.Deque;
 import java.util.function.Predicate;
 
 public class OperatorAnd extends AbstractSelectorOperator {
@@ -24,9 +24,9 @@ public class OperatorAnd extends AbstractSelectorOperator {
 	}
 
 	@Override
-	public <T> void process(Stack<Predicate<? super T>> stack) {
-		Predicate<? super T> arg2 = stack.pop();
-		Predicate<? super T> arg1 = stack.pop();
+	public <T> void process(Deque<Predicate<T>> stack) {
+		Predicate<T> arg2 = stack.pop();
+		Predicate<T> arg1 = stack.pop();
 		stack.push(obj -> arg1.test(obj) && arg2.test(obj));
 	}
 

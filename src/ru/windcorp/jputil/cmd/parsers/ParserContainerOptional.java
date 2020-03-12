@@ -57,8 +57,13 @@ public class ParserContainerOptional extends Parser implements NoBrackets {// TO
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator)
 	 */
+	
+	// SonarLint: Boxed "Boolean" should be avoided in boolean expressions (java:S5411)
+	//   The Boolean obtained with getApproachData cannot be null by design
+	@SuppressWarnings("squid:S5411")
+	
 	@Override
-	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
+	public Supplier<Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
 		if (inv.getApproachData(this, Boolean.class)) {
 			return contents.getProblem(data, inv);
 		}
@@ -69,6 +74,11 @@ public class ParserContainerOptional extends Parser implements NoBrackets {// TO
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#matches(java.text.CharacterIterator)
 	 */
+	
+	// SonarLint: Boxed "Boolean" should be avoided in boolean expressions (java:S5411)
+	//   The Boolean obtained with getApproachData cannot be null by design
+	@SuppressWarnings("squid:S5411")
+	
 	@Override
 	public boolean matches(CharacterIterator data, AutoInvocation inv) {
 		if (inv.getApproachData(this, Boolean.class)) {
@@ -81,6 +91,11 @@ public class ParserContainerOptional extends Parser implements NoBrackets {// TO
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertParsed(java.text.CharacterIterator, java.util.function.Consumer)
 	 */
+	
+	// SonarLint: Boxed "Boolean" should be avoided in boolean expressions (java:S5411)
+	//   The Boolean obtained with getApproachData cannot be null by design
+	@SuppressWarnings("squid:S5411")
+	
 	@Override
 	public void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output) {
 		if (inv.getApproachData(this, Boolean.class)) {
@@ -91,6 +106,10 @@ public class ParserContainerOptional extends Parser implements NoBrackets {// TO
 			contents.insertEmpty(output);
 		}
 	}
+	
+	// SonarLint: Boxed "Boolean" should be avoided in boolean expressions (java:S5411)
+	//   The Boolean obtained with getApproachData cannot be null by design
+	@SuppressWarnings("squid:S5411")
 	
 	@Override
 	public boolean selectNextApproach(AutoInvocation inv) {

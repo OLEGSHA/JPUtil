@@ -18,6 +18,10 @@ public class UnixArgumentInvalidSyntaxException extends Exception {
 
 	private static final long serialVersionUID = 5689716525982612158L;
 	
+	// SonarLint: Fields in a "Serializable" class should either be transient or serializable (java:S1948)
+	//   Serialization does not make sense in this context. Hope this does not change.
+	@SuppressWarnings("squid:S1948")
+	
 	private final UnixArgument<?> argument;
 
 	public UnixArgumentInvalidSyntaxException(String description, Throwable cause, UnixArgument<?> argument) {
@@ -27,6 +31,14 @@ public class UnixArgumentInvalidSyntaxException extends Exception {
 	
 	public UnixArgumentInvalidSyntaxException(String description, UnixArgument<?> argument) {
 		this(description, null, argument);
+	}
+	
+	public UnixArgumentInvalidSyntaxException(String description, Throwable cause, UnixArguments.Handle<?> handle) {
+		this(description, cause, handle.getArgument());
+	}
+	
+	public UnixArgumentInvalidSyntaxException(String description, UnixArguments.Handle<?> handle) {
+		this(description, handle.getArgument());
 	}
 
 	public UnixArgument<?> getArgument() {

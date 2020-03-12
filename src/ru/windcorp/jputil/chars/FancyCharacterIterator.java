@@ -97,8 +97,22 @@ public class FancyCharacterIterator implements CharacterIterator {
 		return sb.toString();
 	}
 	
+//	@SuppressWarnings("all") Just STFU, this _is_ terrific
+	
+	// SonarLint: "clone" should not be overridden (java:S2975)
+	//   And I wouldn't have done that if only CharacterIterator had not required exception safety.
+	// SonarLint: "toString()" and "clone()" methods should not return null (java:S2225)
+	//   The clause is unreachable: CharacterArrayIterator implements Cloneable and superclass is Object.
+	@SuppressWarnings({"squid:S2975", "squid:S2225"})
+
 	@Override
-	public Object clone() {
-		return null;
+	public FancyCharacterIterator clone() {
+		try {
+			return (FancyCharacterIterator) super.clone();
+		} catch (CloneNotSupportedException cnse) {
+			// Impossible
+			return null;
+		}
 	}
+
 }

@@ -65,7 +65,7 @@ public abstract class Parser {
 	public abstract boolean matches(CharacterIterator data, AutoInvocation inv);
 	
 	
-	public abstract Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv);
+	public abstract Supplier<Exception> getProblem(CharacterIterator data, AutoInvocation inv);
 	public abstract void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output);
 	
 	public Class<?>[] getArgumentClasses() {
@@ -74,6 +74,7 @@ public abstract class Parser {
 	
 	/**
 	 * Selects the next approach if possible.
+	 * @param inv - invocation context
 	 * @return {@code false} if next approach could not be selected, {@code true} otherwise 
 	 */
 	public boolean selectNextApproach(AutoInvocation inv) {
@@ -105,6 +106,7 @@ public abstract class Parser {
 		if (c == '"') {
 			c = data.next();
 			try {
+				@SuppressWarnings("deprecation")
 				char[] unescaped = ESCAPER.unescape(data, '"');
 				if (data.current() == '"') {
 					data.next();
@@ -157,6 +159,10 @@ public abstract class Parser {
 		return result;
 	}
 	
+	// SonarLint: Cognitive Complexity of methods should not be too high (java:S3776)
+	//   Simple enough
+	@SuppressWarnings("squid:S3776")
+	
 	protected boolean matchInt(CharacterIterator data) {
 		long result = 0;
 		boolean isPositive = true;
@@ -168,22 +174,30 @@ public abstract class Parser {
 			data.next();
 		}
 		
-		boolean hasAtLeastOneDigit = data.current() >= '0' && data.current() <= '9';
-		if (hasAtLeastOneDigit) do {
+		if (data.current() < '0' || data.current() > '9') {
+			return false;
+		}
+		
+		do {
 			result = result * 10 + (data.current() - '0');
 			if (isPositive) {
-				if (result > Integer.MAX_VALUE) return false;
+				if (+result > Integer.MAX_VALUE) return false;
 			} else {
 				if (-result < Integer.MIN_VALUE) return false;
 			}
 		} while (data.next() >= '0' && data.current() <= '9');
-		else return false;
 		
 		return data.current() == CharacterIterator.DONE || Character.isWhitespace(data.current());
 	}
 	
-	protected Supplier<CommandSyntaxException> argNotFound(Invocation inv) {
-		return () -> new CommandSyntaxException(inv, inv.getContext().translate("auto.generic.argNotFound", "Argument %1$s not found", getId()));
+	protected Supplier<Exception> argNotFound(Invocation inv) {
+		return () -> new CommandSyntaxException(
+				inv,
+				inv.getContext().translate(
+						"auto.generic.argNotFound", "Argument %1$s not found",
+						getId()
+				)
+		);
 	}
 	
 	public boolean matchOrReset(CharacterIterator data, AutoInvocation inv) {
@@ -224,7 +238,7 @@ public abstract class Parser {
 	
 	public final String toSyntax(SyntaxFormatter formatter) {
 		StringBuilder sb = new StringBuilder();
-		toSyntax(sb, formatter == null ? SyntaxFormatter.PLAIN : formatter);
+		toSyntax(sb, formatter == null ? SyntaxFormatters.PLAIN : formatter);
 		return sb.toString();
 	}
 	

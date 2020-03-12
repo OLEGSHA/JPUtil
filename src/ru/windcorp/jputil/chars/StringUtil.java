@@ -27,11 +27,19 @@ import java.util.function.IntFunction;
 
 public class StringUtil {
 	
-	public static <T> String arrayToString(T[] array,
+	private StringUtil() {}
+	
+	private static final String NULL_PLACEHOLDER = "[null]";
+	private static final String EMPTY_PLACEHOLDER = "[empty]";
+	private static final String DEFAULT_SEPARATOR = "; ";
+	
+	public static <T> String arrayToString(
+			T[] array,
 			String separator,
 			String empty,
 			String nullPlaceholder,
-			String nullArray) {
+			String nullArray
+	) {
 		
 		if (separator == null) {
 			throw new IllegalArgumentException(new NullPointerException());
@@ -56,18 +64,20 @@ public class StringUtil {
 	}
 	
 	public static <T> String arrayToString(T[] array, String separator) {
-		return arrayToString(array, separator, "[empty]", "[null]", "[null array]");
+		return arrayToString(array, separator, EMPTY_PLACEHOLDER, NULL_PLACEHOLDER, "[null array]");
 	}
 	
 	public static <T> String arrayToString(T[] array) {
-		return arrayToString(array, "; ");
+		return arrayToString(array, DEFAULT_SEPARATOR);
 	}
 	
-	public static String iteratorToString(Iterator<?> iterator,
+	public static String iteratorToString(
+			Iterator<?> iterator,
 			String separator,
 			String empty,
 			String nullPlaceholder,
-			String nullIterator) {
+			String nullIterator
+	) {
 		
 		if (separator == null) {
 			throw new IllegalArgumentException(new NullPointerException());
@@ -94,18 +104,20 @@ public class StringUtil {
 	}
 	
 	public static String iteratorToString(Iterator<?> iterator, String separator) {
-		return iteratorToString(iterator, separator, "[empty]", "[null]", "[null iterator]");
+		return iteratorToString(iterator, separator, EMPTY_PLACEHOLDER, NULL_PLACEHOLDER, "[null iterator]");
 	}
 	
 	public static String iteratorToString(Iterator<?> iterator) {
-		return iteratorToString(iterator, "; ");
+		return iteratorToString(iterator, DEFAULT_SEPARATOR);
 	}
 	
-	public static String iterableToString(Iterable<?> iterable,
+	public static String iterableToString(
+			Iterable<?> iterable,
 			String separator,
 			String empty,
 			String nullPlaceholder,
-			String nullIterable) {
+			String nullIterable
+	) {
 		
 		if (separator == null) {
 			throw new IllegalArgumentException(new NullPointerException());
@@ -119,76 +131,98 @@ public class StringUtil {
 	}
 	
 	public static String iterableToString(Iterable<?> iterable, String separator) {
-		return iterableToString(iterable, separator, "[empty]", "[null]", "[null iterable]");
+		return iterableToString(iterable, separator, EMPTY_PLACEHOLDER, NULL_PLACEHOLDER, "[null iterable]");
 	}
 	
 	public static String iterableToString(Iterable<?> iterable) {
-		return iterableToString(iterable, "; ");
+		return iterableToString(iterable, DEFAULT_SEPARATOR);
 	}
 	
-	public static <T> String supplierToString(IntFunction<T> supplier,
+	public static <T> String supplierToString(
+			IntFunction<T> supplier,
 			int length,
 			String separator,
 			String empty,
 			String nullPlaceholder,
-			String nullSupplier) {
+			String nullSupplier
+	) {
 		
-		if (separator == null) {
-			throw new IllegalArgumentException(new NullPointerException());
+		if (separator == null) throw new IllegalArgumentException(new NullPointerException());
+		if (supplier == null) return nullSupplier;
+		if (length == 0) return empty;
+		
+		if (length > 0) {
+			return supplierToStringExactly(
+					supplier,
+					length,
+					separator,
+					nullPlaceholder
+			);
+		} else {
+			return supplierToStringUntilNull(
+					supplier,
+					separator,
+					empty
+			);
 		}
 		
-		if (supplier == null) {
-			return nullSupplier;
+	}
+
+	private static <T> String supplierToStringExactly(
+			IntFunction<T> supplier,
+			int length,
+			String separator,
+			String nullPlaceholder
+	) {
+		T element = supplier.apply(0);
+		
+		StringBuilder sb = new StringBuilder(element == null ? nullPlaceholder : element.toString());
+		
+		for (int i = 1; i < length; ++i) {
+			sb.append(separator);
+			element = supplier.apply(i);
+			sb.append(element == null ? nullPlaceholder : element.toString());
 		}
 		
-		if (length == 0) {
+		return sb.toString();
+	}
+	
+	private static <T> String supplierToStringUntilNull(
+			IntFunction<T> supplier,
+			String separator,
+			String empty
+	) {
+		T element = supplier.apply(0);
+
+		if (element == null) {
 			return empty;
 		}
 		
-		T element = supplier.apply(0);
+		StringBuilder sb = new StringBuilder(element.toString());
 		
-		if (length < 0) {
-			if (element == null) {
-				return empty;
-			}
-			
-			StringBuilder sb = new StringBuilder(element.toString());
-			
-			int i = 0;
-			while ((element = supplier.apply(i++)) != null) {
-				sb.append(separator);
-				sb.append(element);
-			}
-			
-			return sb.toString();
-		} else {
-			StringBuilder sb = new StringBuilder(element == null ? nullPlaceholder : element.toString());
-			
-			for (int i = 1; i < length; ++i) {
-				sb.append(separator);
-				element = supplier.apply(i);
-				sb.append(element == null ? nullPlaceholder : element.toString());
-			}
-			
-			return sb.toString();
+		int i = 0;
+		while ((element = supplier.apply(i++)) != null) {
+			sb.append(separator);
+			sb.append(element);
 		}
 		
+		return sb.toString();
 	}
-	
+
 	public static String supplierToString(IntFunction<?> supplier, int length, String separator) {
-		return supplierToString(supplier, length, separator, "[empty]", "[null]", "[null supplier]");
+		return supplierToString(supplier, length, separator, EMPTY_PLACEHOLDER, NULL_PLACEHOLDER, "[null supplier]");
 	}
 	
 	public static String supplierToString(IntFunction<?> supplier, String separator) {
-		return supplierToString(supplier, -1, separator, "[empty]", "[null]", "[null supplier]");
+		return supplierToString(supplier, -1, separator, EMPTY_PLACEHOLDER, NULL_PLACEHOLDER, "[null supplier]");
 	}
 	
 	public static String supplierToString(IntFunction<?> supplier, int length) {
-		return supplierToString(supplier, length, "; ");
+		return supplierToString(supplier, length, DEFAULT_SEPARATOR);
 	}
 	
 	public static String supplierToString(IntFunction<?> supplier) {
-		return supplierToString(supplier, -1, "; ");
+		return supplierToString(supplier, -1, DEFAULT_SEPARATOR);
 	}
 	
 	public static byte[] toJavaByteArray(String str) {
@@ -218,13 +252,9 @@ public class StringUtil {
 	}
 	
 	public static String[] split(String src, char separator, int arrayLength) {
-		if (arrayLength < 0) {
-			throw new IllegalArgumentException("arrayLength must be non-negative (" + arrayLength + ")");
-		} else if (arrayLength == 0) {
-			return new String[0];
-		} else if (arrayLength == 1) {
-			return new String[] { src };
-		}
+		if (arrayLength < 0) throw illegalArrayLength(arrayLength);
+		else if (arrayLength == 0) return new String[0];
+		else if (arrayLength == 1) return new String[] { src };
 		
 		String[] result = new String[arrayLength];
 		
@@ -263,27 +293,23 @@ public class StringUtil {
 	}
 	
 	public static String[] split(String src, int arrayLength, char... separator) {
-		if (arrayLength < 0) {
-			throw new IllegalArgumentException("arrayLength must be non-negative (" + arrayLength + ")");
-		} else if (arrayLength == 0) {
-			return new String[0];
-		} else if (arrayLength == 1) {
-			return new String[] { src };
-		}
+		if (arrayLength < 0) throw illegalArrayLength(arrayLength);
+		else if (arrayLength == 0) return new String[0];
+		else if (arrayLength == 1) return new String[] { src };
 		
 		String[] result = new String[arrayLength];
 		
 		int resultIndex = 0;
 		StringBuilder sb = new StringBuilder();
 		
-		charloop:
+		charLoop:
 		for (char c : src.toCharArray()) {
 			if ((resultIndex + 1) < arrayLength) {
 				for (char h : separator) {
 					if (c == h) {
 						result[resultIndex] = resetStringBuilder(sb);
 						++resultIndex;
-						continue charloop;
+						continue charLoop;
 					}
 				}
 			}
@@ -310,27 +336,25 @@ public class StringUtil {
 	}
 	
 	public static String[] split(String src, int arrayLength, CharPredicate test) {
-		if (arrayLength < 0) {
-			throw new IllegalArgumentException("arrayLength must be non-negative (" + arrayLength + ")");
-		} else if (arrayLength == 0) {
-			return new String[0];
-		} else if (arrayLength == 1) {
-			return new String[] { src };
-		}
+		if (arrayLength < 0) throw illegalArrayLength(arrayLength);
+		else if (arrayLength == 0) return new String[0];
+		else if (arrayLength == 1) return new String[] { src };
 		
 		String[] result = new String[arrayLength];
 		
 		int resultIndex = 0;
 		StringBuilder sb = new StringBuilder();
 		
-		charloop:
+		charLoop:
 		for (char c : src.toCharArray()) {
-			if ((resultIndex + 1) < arrayLength) {
-				if (test.test(c)) {
-					result[resultIndex] = resetStringBuilder(sb);
-					++resultIndex;
-					continue charloop;
-				}
+			if (
+					(resultIndex + 1) < arrayLength
+					&&
+					test.test(c)
+			) {
+				result[resultIndex] = resetStringBuilder(sb);
+				++resultIndex;
+				continue charLoop;
 			}
 			
 			sb.append(c);
@@ -339,6 +363,10 @@ public class StringUtil {
 		result[resultIndex] = sb.toString();
 		
 		return result;
+	}
+	
+	private static IllegalArgumentException illegalArrayLength(int length) {
+		return new IllegalArgumentException("arrayLength must be non-negative (" + length + ")");
 	}
 	
 	public static String remove(String src, char... remove) {
@@ -538,7 +566,8 @@ public class StringUtil {
 		
 		char[] result = new char[length];
 		
-		int i = 0, srcLength = src.length();
+		int i = 0;
+		int srcLength = src.length();
 		
 		for (; i < length - srcLength; ++i) {
 			result[i] = c;
@@ -593,7 +622,7 @@ public class StringUtil {
 		}
 		
 		if (sb.length() != 0) {
-			result[i++] = resetStringBuilder(sb);
+			result[i] = resetStringBuilder(sb);
 		}
 		
 		return result;
@@ -701,70 +730,46 @@ public class StringUtil {
 	}
 	
 	public static char[] toFullHex(byte x) {
-		char[] result = new char[] { '0', 'x', 0, 0 };
-		
-		result[3] = hexDigit((x       ) & 0xF);
-		result[2] = hexDigit((x >>>  4) & 0xF);
-		
-		return result;
+		return toFullHex(x, Byte.BYTES);
 	}
-	
+		
 	public static char[] toFullHex(short x) {
-		char[] result = new char[] { '0', 'x', 0, 0, 0, 0 };
-		
-		result[5] = hexDigit((x       ) & 0xF);
-		result[4] = hexDigit((x >>>= 4) & 0xF);
-		result[3] = hexDigit((x >>>= 4) & 0xF);
-		result[2] = hexDigit((x >>>  4) & 0xF);
-		
-		return result;
+		return toFullHex(x, Short.BYTES);
 	}
 	
 	public static char[] toFullHex(int x) {
-		char[] result = new char[] { '0', 'x', 0, 0, 0, 0,  0, 0, 0, 0 };
+		return toFullHex(x, Integer.BYTES);
+	}
+	
+	public static char[] toFullHex(long x) {
+		return toFullHex(x, Long.BYTES);
+	}
+	
+	private static char[] toFullHex(long x, int bytes) {
+		final int digits = bytes * 2;
 		
-		result[9] = hexDigit((x       ) & 0xF);
-		result[8] = hexDigit((x >>>= 4) & 0xF);
-		result[7] = hexDigit((x >>>= 4) & 0xF);
-		result[6] = hexDigit((x >>>= 4) & 0xF);
+		char[] result = new char[digits + 2];
+		result[0] = '0';
+		result[1] = 'x';
 		
-		result[5] = hexDigit((x >>>= 4) & 0xF);
-		result[4] = hexDigit((x >>>= 4) & 0xF);
-		result[3] = hexDigit((x >>>= 4) & 0xF);
-		result[2] = hexDigit((x >>>  4) & 0xF);
+		for (int digit = 0; digit < digits; ++digit) {
+			result[(digits - digit - 1) + 2] =
+					hexDigit(x, digit);
+		}
 		
 		return result;
 	}
 	
-	public static char[] toFullHex(long x) {
-		char[] result = new char[] { '0', 'x', 0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0 };
-		
-		result[17] = hexDigit((int) (x       ) & 0xF);
-		result[16] = hexDigit((int) (x >>>= 4) & 0xF);
-		result[15] = hexDigit((int) (x >>>= 4) & 0xF);
-		result[14] = hexDigit((int) (x >>>= 4) & 0xF);
-
-		result[13] = hexDigit((int) (x >>>= 4) & 0xF);
-		result[12] = hexDigit((int) (x >>>= 4) & 0xF);
-		result[11] = hexDigit((int) (x >>>= 4) & 0xF);
-		result[10] = hexDigit((int) (x >>>= 4) & 0xF);
-		
-		result[ 9] = hexDigit((int) (x >>>= 4) & 0xF);
-		result[ 8] = hexDigit((int) (x >>>= 4) & 0xF);
-		result[ 7] = hexDigit((int) (x >>>= 4) & 0xF);
-		result[ 6] = hexDigit((int) (x >>>= 4) & 0xF);
-
-		result[ 5] = hexDigit((int) (x >>>= 4) & 0xF);
-		result[ 4] = hexDigit((int) (x >>>= 4) & 0xF);
-		result[ 3] = hexDigit((int) (x >>>= 4) & 0xF);
-		result[ 2] = hexDigit((int) (x >>>  4) & 0xF);
-		
-		return result;
+	private static char hexDigit(long value, int digit) {
+		return hexDigit(
+				(int) (value >>> (4 * digit))
+				& 0xF
+		);
 	}
 	
 	public static char hexDigit(int value) {
 		if (value < 0xA) return (char) ('0' + value);
-		else return (char) ('A' - 0xA + value);
+		else             return (char) ('A' - 0xA + value);
 	}
 	
 }

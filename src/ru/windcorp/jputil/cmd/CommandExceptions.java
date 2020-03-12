@@ -34,6 +34,10 @@ public abstract class CommandExceptions extends Exception {
 
 	private static final long serialVersionUID = -8088208351838104573L;
 	
+	// SonarLint: Fields in a "Serializable" class should either be transient or serializable (java:S1948)
+	//   Serialization does not make sense in this context. Hope this does not change.
+	@SuppressWarnings("squid:S1948")
+	
 	private final Invocation inv;
 	
 	protected CommandExceptions(Invocation inv) {

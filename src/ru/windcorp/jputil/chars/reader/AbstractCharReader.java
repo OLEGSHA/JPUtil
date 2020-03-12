@@ -36,7 +36,6 @@ public abstract class AbstractCharReader implements CharReader {
 	private int nextMark = 0;
 
 	protected static int closestGreaterPowerOf2(int x) {
-//		x -= 1;
 	    x |= x >> 1;
 	    x |= x >> 2;
 	    x |= x >> 4;
@@ -68,7 +67,8 @@ public abstract class AbstractCharReader implements CharReader {
 	@Override
 	public int mark() {
 		ensureMarksCapacity();
-		return marks[nextMark++] = position;
+		marks[nextMark++] = position;
+		return position;
 	}
 
 	/**

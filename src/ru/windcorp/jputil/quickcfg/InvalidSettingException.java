@@ -14,20 +14,26 @@
  */
 package ru.windcorp.jputil.quickcfg;
 
-import java.util.Stack;
+import java.util.Deque;
+import java.util.LinkedList;
 
 public class InvalidSettingException extends QCFGException {
 
 	private static final long serialVersionUID = 2828365534939572805L;
 	
-	private static final ThreadLocal<Stack<String>> NOW_PARSING = ThreadLocal.withInitial(() -> new Stack<>());
+	private static final ThreadLocal<Deque<String>> NOW_PARSING = ThreadLocal.withInitial(LinkedList::new);
 	
 	public static void startParsing(String setting) {
 		NOW_PARSING.get().push(setting);
 	}
 	
 	public static String endParsing() {
-		return NOW_PARSING.get().pop();
+		Deque<String> stack = NOW_PARSING.get();
+		String result = stack.pop();
+		if (stack.isEmpty()) {
+			NOW_PARSING.remove();
+		}
+		return result;
 	}
 	
 	private static String getPrefix() {

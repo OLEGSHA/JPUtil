@@ -43,6 +43,8 @@ import ru.windcorp.jputil.chars.StringUtil;
 
 public class Parsers {
 	
+	private Parsers() {}
+	
 	@FunctionalInterface
 	public static interface ParserCreator {
 		Parser create(String id, CharacterIterator data);

@@ -140,6 +140,11 @@ public class AutoCommand extends Command {
 	/**
 	 * @see ru.windcorp.jputil.cmd.Command#run(ru.windcorp.jputil.cmd.Invocation)
 	 */
+	
+	// SonarLint: Nested code blocks should not be used (java:S1199)
+	//   Nested code block interacts with most local variables
+	@SuppressWarnings("squid:S1199")
+	
 	@Override
 	public void run(Invocation givenInv) throws CommandExceptions {
 		AutoInvocation inv = new AutoInvocation(givenInv, parser);
@@ -246,7 +251,7 @@ public class AutoCommand extends Command {
 			
 			if (action == null) {
 				assert methodInst != null && methodName != null : "Action nor method lookup arguments are set";
-				findMethod(parser, parameterTypes);
+				findMethod(parameterTypes);
 			}
 			
 			return new AutoCommand(names, syntax, description, parser, parameterTypes, action);
@@ -288,7 +293,7 @@ public class AutoCommand extends Command {
 			};
 		}
 		
-		private void findMethod(Parser parser, Class<?>[] parameterTypes) {
+		private void findMethod(Class<?>[] parameterTypes) {
 			Class<?> clazz;
 			Object inst;
 			

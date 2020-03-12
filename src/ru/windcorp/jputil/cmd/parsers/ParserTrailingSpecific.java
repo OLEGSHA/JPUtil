@@ -72,7 +72,7 @@ public class ParserTrailingSpecific extends Parser implements NoBrackets {
 	}
 
 	@Override
-	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
+	public Supplier<Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
 		while (data.getIndex() < data.getEndIndex()) {
 			int index = data.getIndex();
 			if (!parser.matches(data, inv)) {

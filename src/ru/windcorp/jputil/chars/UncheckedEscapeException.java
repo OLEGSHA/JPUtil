@@ -12,20 +12,23 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-package ru.windcorp.jputil.selectors;
+package ru.windcorp.jputil.chars;
 
-import java.util.Deque;
-import java.util.function.Predicate;
+public class UncheckedEscapeException extends RuntimeException {
 
-public class OperatorNot extends AbstractSelectorOperator {
-	
-	public OperatorNot(String... names) {
-		super(names);
+	private static final long serialVersionUID = 5392628641744570926L;
+
+	public UncheckedEscapeException(String message, EscapeException cause) {
+		super(message, cause);
 	}
 
+	public UncheckedEscapeException(EscapeException cause) {
+		super(cause);
+	}
+	
 	@Override
-	public <T> void process(Deque<Predicate<T>> stack) {
-		stack.push(stack.pop().negate());
+	public synchronized EscapeException getCause() {
+		return (EscapeException) super.getCause();
 	}
 
 }

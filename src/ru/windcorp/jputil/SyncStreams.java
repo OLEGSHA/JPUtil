@@ -55,6 +55,11 @@ import java.util.stream.Stream;
  * terminal operations</a> on a given monitor.
  * @author Javapony (<a href="mailto:kvadropups@gmail.com">kvadropups@gmail.com</a>)
  */
+
+// SonarLint: "Stream.peek" should be used with caution (java:S3864)
+//   We are implementing Stream, so peek() is required.
+@SuppressWarnings("squid:S3864")
+
 public class SyncStreams {
 
 	public static class SyncStream<T> implements Stream<T> {

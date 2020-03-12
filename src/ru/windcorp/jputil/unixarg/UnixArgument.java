@@ -18,7 +18,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 
 public abstract class UnixArgument<T> implements Comparable<UnixArgument<?>> {
 	
@@ -26,8 +28,13 @@ public abstract class UnixArgument<T> implements Comparable<UnixArgument<?>> {
 	public static final int ARGUMENTS_ONE = 0;
 	public static final int ARGUMENTS_ALL = 2;
 	
-	public static final Collection<Class<?>> ALLOWED_ARGUMENT_TYPES = Arrays.asList(
-			String.class, String[].class, Byte.class, Short.class, Integer.class, Long.class, Float.class, Double.class, Character.class, Boolean.class);
+	public static final Collection<Class<?>> ALLOWED_ARGUMENT_TYPES = Collections.unmodifiableCollection(Arrays.asList(
+			String.class, String[].class,
+			Byte.class, Short.class, Integer.class, Long.class,
+			Float.class, Double.class,
+			Character.class,
+			Boolean.class
+	));
 	
 	private final String name;
 	private final Character letter;
@@ -94,11 +101,9 @@ public abstract class UnixArgument<T> implements Comparable<UnixArgument<?>> {
 		try {
 			setHasRun(true);
 			return runImpl(arg);
+		} catch (UnixArgumentInvalidSyntaxException | InvocationTargetException e) {
+			throw e;
 		} catch (Exception e) {
-			if (e instanceof UnixArgumentInvalidSyntaxException || e instanceof InvocationTargetException) {
-				throw e;
-			}
-			
 			throw new InvocationTargetException(e, "Unhandled exception in argument " + this);
 		}
 	}
@@ -108,16 +113,21 @@ public abstract class UnixArgument<T> implements Comparable<UnixArgument<?>> {
 	public synchronized void reset() {
 		setHasRun(false);
 	}
-
+	
 	@Override
 	public int compareTo(UnixArgument<?> arg0) {
+		if (arg0 == this) return 0;
+		
 		if (getCharForComparison() > arg0.getCharForComparison()) {
 			return 1;
 		}
 		
-		// Conscious decision to not return 0 ever
 		return -1;
 	}
+	
+	// Just to clarify: no equal arguments exist
+	@Override public boolean equals(Object obj) { return obj == this; }
+	@Override public int     hashCode()         { return super.hashCode(); }
 	
 	@Override
 	public String toString() {
@@ -157,18 +167,21 @@ public abstract class UnixArgument<T> implements Comparable<UnixArgument<?>> {
 	}
 	
 	@SuppressWarnings("unchecked")
-	boolean parseInputAndRun(Iterator<String> input) throws InvocationTargetException, UnixArgumentInvalidSyntaxException {
+	boolean parseInputAndRun(Iterator<String> input)
+			throws InvocationTargetException, UnixArgumentInvalidSyntaxException
+	{
 		if (getArgumentType() == null) {
 			return run(null);
 		}
 		
 		if (getArgumentType() == String[].class) {
-			ArrayList<String> list = new ArrayList<String>();
+			List<String> list = new ArrayList<>();
 			while (input.hasNext()) {
 				list.add(input.next());
 			}
 			
-			// Since Class<T> is String[].class then T is String[], then run(T) expects String[] as argument -- this is safe
+			// Since Class<T> is String[].class then T is String[],
+			// run(T) expects String[] as argument -- this is safe
 			return run((T) list.toArray(new String[0]));
 		}
 		
@@ -183,7 +196,10 @@ public abstract class UnixArgument<T> implements Comparable<UnixArgument<?>> {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
+	// SonarLint: Cognitive Complexity of methods should not be too high (java:S3776) (28 > 15)
+	//   This is a very simple method that just happens to contain many if's
+	@SuppressWarnings({"unchecked", "squid:S3776"})
+	
 	private T parseSingleInput(String input) throws UnixArgumentInvalidSyntaxException {
 		if (getArgumentType() == String.class) {
 			return (T) input;
@@ -225,7 +241,9 @@ public abstract class UnixArgument<T> implements Comparable<UnixArgument<?>> {
 			}
 		} else if (getArgumentType() == Character.class) {
 			if (input.length() != 1) {
-				throw new UnixArgumentInvalidSyntaxException("Could not parse " + input + " as a single character", this);
+				throw new UnixArgumentInvalidSyntaxException(
+						"Could not parse " + input + " as a single character", this
+				);
 			}
 			
 			return (T) (Character) input.charAt(0);
@@ -235,7 +253,9 @@ public abstract class UnixArgument<T> implements Comparable<UnixArgument<?>> {
 			} else if (input.equalsIgnoreCase("false")) {
 				return (T) Boolean.FALSE;
 			} else {
-				throw new UnixArgumentInvalidSyntaxException("Could not parse " + input + " as a boolean value (\"true\" or \"false\" expected)", this);
+				throw new UnixArgumentInvalidSyntaxException(
+						"Could not parse " + input + " as a boolean value (\"true\" or \"false\" expected)", this
+				);
 			}
 		} else {
 			return null;

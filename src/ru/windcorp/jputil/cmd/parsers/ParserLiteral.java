@@ -37,7 +37,7 @@ public class ParserLiteral extends Parser implements NoBrackets {
 	private final char[] templateChars;
 
 	public ParserLiteral(String id, String template) {
-		super(id, new Class<?>[0]);
+		super(id);
 		
 		if (Objects.requireNonNull(template, "template").isEmpty()) {
 			throw new IllegalArgumentException("Template is empty");
@@ -51,12 +51,18 @@ public class ParserLiteral extends Parser implements NoBrackets {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.jputil.cmd.Invocation)
 	 */
 	@Override
-	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
+	public Supplier<Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
 		if (matchOrReset(data, inv)) return null;
 		
 		String arg = String.valueOf(nextWord(data));
 		if (arg.length() == 0) return argNotFound(inv);
-		return () -> new CommandSyntaxException(inv, inv.getContext().translate("auto.literal.doesNotMatch", "\"%2$s\" expected, \"%1$s\" encountered", arg, template));
+		return () -> new CommandSyntaxException(
+				inv,
+				inv.getContext().translate(
+						"auto.literal.doesNotMatch", "\"%2$s\" expected, \"%1$s\" encountered",
+						arg, template
+				)
+		);
 	}
 
 	/**

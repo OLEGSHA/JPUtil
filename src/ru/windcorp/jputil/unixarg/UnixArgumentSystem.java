@@ -17,78 +17,65 @@ package ru.windcorp.jputil.unixarg;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.Queue;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
 import ru.windcorp.jputil.Version;
+import ru.windcorp.jputil.iterators.ArrayIterator;
 import ru.windcorp.jputil.textui.TUITable;
+
+// SonarLint: Standard outputs should not be used directly to log anything (java:S106)
+//   This is intended for simple console applications that use System.out directly 
+@SuppressWarnings("squid:S106")
 
 public class UnixArgumentSystem {
 	
+	@FunctionalInterface
 	public static interface UnknownArgumentPolicy {
-		public static final UnknownArgumentPolicy
-		IGNORE = new UnknownArgumentPolicy() {
-			
-			@Override
-			public boolean onUnknownArgument(String name) {
-				return false;
-			}
-			
-		},
-		WARN = new UnknownArgumentPolicy() {
-
-			@Override
-			public boolean onUnknownArgument(String name) {
-				System.out.println("Unknown argument " + name);
-				return false;
-			}
-			
-		},
-		TERMINATE = new UnknownArgumentPolicy() {
-			
-			@Override
-			public boolean onUnknownArgument(String name) {
-				System.out.println("Unknown argument " + name);
-				return true;
-			}
-			
-		};
-		
 		public boolean onUnknownArgument(String name);
 	}
 	
-	public static interface InvalidSyntaxPolicy {
-		public static final InvalidSyntaxPolicy
-		IGNORE = new InvalidSyntaxPolicy() {
-			
-			@Override
-			public boolean onInvalidSyntax(UnixArgument<?> arg, String description) {
+	public static class UnknownArgumentPolicies {
+		private UnknownArgumentPolicies() {}
+		
+		public static final UnknownArgumentPolicy
+		IGNORE = name -> false;
+		
+		public static final UnknownArgumentPolicy
+		WARN = name -> {
+				System.out.println("Unknown argument " + name);
 				return false;
-			}
-			
-		},
-		WARN = new InvalidSyntaxPolicy() {
-
-			@Override
-			public boolean onInvalidSyntax(UnixArgument<?> arg, String description) {
-				System.out.println("Invalid use of argument " + arg + ": " + description);
-				return false;
-			}
-			
-		},
-		TERMINATE = new InvalidSyntaxPolicy() {
-			
-			@Override
-			public boolean onInvalidSyntax(UnixArgument<?> arg, String description) {
-				System.out.println("Invalid use of argument " + arg + ": " + description);
-				return true;
-			}
-			
 		};
 		
+		public static final UnknownArgumentPolicy
+		TERMINATE = name -> {
+				System.out.println("Unknown argument " + name);
+				return true;
+		};
+	}
+	
+	@FunctionalInterface
+	public static interface InvalidSyntaxPolicy {
 		public boolean onInvalidSyntax(UnixArgument<?> arg, String description);
+	}
+	
+	public static class InvalidSyntaxPolicies {
+		private InvalidSyntaxPolicies() {}
+		
+		public static final InvalidSyntaxPolicy
+		IGNORE = (arg, description) -> false;
+
+		public static final InvalidSyntaxPolicy
+		WARN = (arg, description) -> {
+				System.out.println("Invalid use of argument " + arg + ": " + description);
+				return false;
+		};
+
+		public static final InvalidSyntaxPolicy
+		TERMINATE = (arg, description) -> {
+				System.out.println("Invalid use of argument " + arg + ": " + description);
+				return true;
+		};
 	}
 	
 	private final SortedSet<UnixArgument<?>> arguments = Collections.synchronizedSortedSet(new TreeSet<>());
@@ -123,19 +110,15 @@ public class UnixArgumentSystem {
 	 * @return true if the application should terminate
 	 * @throws InvocationTargetException 
 	 */
-	public boolean run(String[] input,
+	public boolean run(
+			String[] input,
 			UnknownArgumentPolicy unknownArgumentPolicy,
 			InvalidSyntaxPolicy invalidSyntaxPolicy,
-			boolean skipInputWithoutDashes)
-					throws InvocationTargetException {
-		
-		Queue<String> queue = new LinkedList<String>();
-		
-		for (String s : input) {
-			queue.add(s);
-		}
-		
-		return run(queue.iterator(), unknownArgumentPolicy, invalidSyntaxPolicy, skipInputWithoutDashes);
+			boolean skipInputWithoutDashes
+	)
+			throws InvocationTargetException
+	{
+		return run(new ArrayIterator<>(input), unknownArgumentPolicy, invalidSyntaxPolicy, skipInputWithoutDashes);
 	}
 	
 	/**
@@ -144,68 +127,86 @@ public class UnixArgumentSystem {
 	 * @return true if the application should terminate
 	 * @throws InvocationTargetException 
 	 */
-	public synchronized boolean run(Iterator<String> input,
+	public synchronized boolean run(
+			Iterator<String> input,
 			UnknownArgumentPolicy unknownArgumentPolicy,
 			InvalidSyntaxPolicy invalidSyntaxPolicy,
-			boolean skipInputWithoutDashes)
-					throws InvocationTargetException {
+			boolean skipInputWithoutDashes
+	)
+			throws InvocationTargetException
+	{
 		
 		if (!input.hasNext()) {
-			if (checkRequiredArguments()) {
-				System.out.println("One or more required arguments are missing, the program will terminate");
-				return true;
-			}
-			
-			return false;
+			if (checkRequiredArguments()) return true;
 		}
 		
 		do {
-			
-			String next = input.next();
-			
-			if (next.equals("--help") || next.equals("-h")) {
-				showHelp();
+			if (tryToParseArgument(input, unknownArgumentPolicy, invalidSyntaxPolicy, skipInputWithoutDashes)) {
 				return true;
 			}
-			
-			if (next.equals("--version") || next.equals("-v")) {
-				showVersion();
-				return true;
-			}
-			
-			try {
-				
-				if (next.startsWith("--")) {
-					if (parseLongArgument(next.substring("--".length()), input)) {
-						return true;
-					}
-				} else if (next.startsWith("-")) {
-					for (char c : next.substring("-".length()).toCharArray()) {
-						if (parseShortArgument(c, input)) {
-							return true;
-						}
-					}
-				} else if (skipInputWithoutDashes) {
-					continue;
-				} else {
-					throw new UnixArgumentUnknownException(next);
-				}
-				
-			} catch (UnixArgumentInvalidSyntaxException e) {
-				if (invalidSyntaxPolicy.onInvalidSyntax(e.getArgument(), e.getMessage())) {
-					return true;
-				}
-			} catch (UnixArgumentUnknownException e) {
-				if (unknownArgumentPolicy.onUnknownArgument(e.getMessage())) {
-					return true;
-				}
-			}
-			
 		} while (input.hasNext());
 		
-		if (checkRequiredArguments()) {
-			System.out.println("One or more required arguments are missing, the program will terminate");
+		if (checkRequiredArguments()) return true;
+		return false;
+	}
+	
+	private boolean tryToParseArgument(
+			Iterator<String> input,
+			UnknownArgumentPolicy unknownArgumentPolicy,
+			InvalidSyntaxPolicy invalidSyntaxPolicy,
+			boolean skipInputWithoutDashes
+	)
+			throws InvocationTargetException
+	{
+		try {
+			if (parseArgument(input.next(), input, skipInputWithoutDashes)) {
+				return true;
+			}
+		} catch (UnixArgumentInvalidSyntaxException e) {
+			if (invalidSyntaxPolicy.onInvalidSyntax(e.getArgument(), e.getMessage())) {
+				return true;
+			}
+		} catch (UnixArgumentUnknownException e) {
+			if (unknownArgumentPolicy.onUnknownArgument(e.getMessage())) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	private boolean parseArgument(
+			String arg, Iterator<String> input,
+			boolean skipInputWithoutDashes
+	)
+			throws InvocationTargetException,
+			       UnixArgumentInvalidSyntaxException,
+			       UnixArgumentUnknownException
+	{
+		if (arg.equals("--help") || arg.equals("-h")) {
+			showHelp();
 			return true;
+		}
+		
+		if (arg.equals("--version") || arg.equals("-v")) {
+			showVersion();
+			return true;
+		}
+			
+		if (arg.startsWith("--")) {
+			if (parseLongArgument(arg.substring("--".length()), input)) {
+				return true;
+			}
+		} else if (arg.startsWith("-")) {
+			for (char c : arg.substring("-".length()).toCharArray()) {
+				if (parseShortArgument(c, input)) {
+					return true;
+				}
+			}
+		} else if (skipInputWithoutDashes) {
+			// continue
+		} else {
+			throw new UnixArgumentUnknownException(arg);
 		}
 		
 		return false;
@@ -250,15 +251,22 @@ public class UnixArgumentSystem {
 	}
 
 	private boolean checkRequiredArguments() {
+		boolean argumentsMissing = false;
+		
 		synchronized (getArguments()) {
 			for (UnixArgument<?> a : getArguments()) {
 				if (a.isRequired() && !a.hasRun()) {
-					return true;
+					argumentsMissing = true;
+					break;
 				}
 			}
 		}
 		
-		return false;
+		if (argumentsMissing) {
+			System.out.println("One or more required arguments are missing, the program will terminate");
+		}
+		
+		return argumentsMissing;
 	}
 
 	private void showHelp() {
@@ -270,7 +278,7 @@ public class UnixArgumentSystem {
 		
 		System.out.println("Options:");
 		
-		TUITable table = new TUITable(false, new Object[] {"", "", ""});
+		TUITable table = new TUITable("", "", "").setDrawGrid(false);
 		
 		for (UnixArgument<?> a : getArguments()) {
 			table.addRow(a.getLetter() == null ? "" : "-" + a.getLetter(),

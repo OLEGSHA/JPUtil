@@ -33,6 +33,8 @@ import ru.windcorp.jputil.chars.CharSupplier;
  */
 public class CharReaders {
 	
+	private CharReaders() {}
+	
 	public static CharReader wrap(char[] array, int offset, int length) {
 		return new ArrayCharReader(array, offset, length);
 	}

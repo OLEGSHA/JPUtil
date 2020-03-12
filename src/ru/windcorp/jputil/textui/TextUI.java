@@ -21,7 +21,13 @@ import java.io.UncheckedIOException;
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+// SonarLint: Standard outputs should not be used directly to log anything (java:S106)
+//   This is intended for simple console applications that use System.out directly 
+@SuppressWarnings("squid:S106")
+
 public class TextUI {
+	
+	private TextUI() {}
 	
 	public static final BufferedReader SYS_IN_READER = new BufferedReader(new InputStreamReader(System.in));
 	
@@ -61,7 +67,7 @@ public class TextUI {
 				write("-> " + options[index - 1]);
 				return options[index - 1];
 			} catch (NumberFormatException e) {
-				continue;
+				// continue
 			}
 		}
 	}
@@ -88,7 +94,7 @@ public class TextUI {
 				write("-> " + no);
 				return false;
 			} else {
-				continue;
+				// continue
 			}
 		}
 	}
@@ -113,6 +119,11 @@ public class TextUI {
 		Confirmer() {
 			super("TextUI Confirmer");
 		}
+		
+		// SonarLint: Catches should be combined (java:S2147)
+		// SonarLint: "InterruptedException" should not be ignored (java:S2142)
+		//   Look. At. The comments.
+		@SuppressWarnings({"squid:S2147", "squid:S2142"})
 
 		@Override
 		public void run() {
@@ -147,7 +158,9 @@ public class TextUI {
 		public void run() {
 			try {
 				Thread.sleep(milliseconds);
-			} catch (InterruptedException e) {}
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
 			if (!prompter.complete.get()) {
 				prompter.interrupt();
 			}
@@ -155,6 +168,10 @@ public class TextUI {
 		
 	}
 	
+	// SonarLint: "InterruptedException" should not be ignored (java:S2142)
+	//   Look. At. The comments.
+	@SuppressWarnings("squid:S2142")
+			
 	public static boolean confirm(String prompt, String pressEnter, long timeout) {
 
 		if (prompt != null) write(prompt);
@@ -164,12 +181,12 @@ public class TextUI {
 		ConfirmerInterrupter interrupter = new ConfirmerInterrupter(timeout, prompter);
 		
 		prompter.start();
-		new Thread(interrupter).start();
+		interrupter.start();
 		
 		try {
 			prompter.join();
 		} catch (InterruptedException e) {
-			// Ignore
+			// Ignore - we've expected this
 		}
 		
 		return prompter.complete.get();
@@ -189,26 +206,21 @@ public class TextUI {
 				null, null);
 	}
 
-	public static Long readInteger(String prompt, String formattedNotANumber, boolean allowExit,
-			long min, long max, String formattedTooLittle, String formattedTooMuch) {
+	public static Long readInteger(
+			String prompt,
+			String formattedNotANumber,
+			boolean allowExit,
+			long min, long max,
+			String formattedTooSmall, String formattedTooLarge
+	) {
 		String line = null;
 		long result;
 		
-		if (formattedNotANumber == null) {
-			formattedNotANumber = "\"%s\" is not an integer";
-		}
+		if (formattedNotANumber == null) formattedNotANumber = "\"%s\" is not an integer";
+		if (formattedTooSmall   == null) formattedTooSmall   = "%d is less than %d";
+		if (formattedTooLarge   == null) formattedTooLarge   = "%d is greater than %d";
 		
-		if (formattedTooLittle == null) {
-			formattedTooLittle = "%d is less than %d";
-		}
-		
-		if (formattedTooMuch == null) {
-			formattedTooMuch = "%d is greater than %d";
-		}
-		
-		if (prompt != null) {
-			write(prompt);
-		}
+		if (prompt != null) write(prompt);
 		
 		while (true) {
 			try {
@@ -219,39 +231,15 @@ public class TextUI {
 					return null;
 				}
 				
-				boolean isNegative = false;
-				if (line.startsWith("-")) {
-					isNegative = true;
-					line = line.substring("-".length());
-				} else if (line.startsWith("+")) {
-					line = line.substring("+".length());
-				}
-				
-				int radix = 10;
-				if (line.startsWith("0x")) {
-					radix = 0x10;
-					line = line.substring("0x".length());
-				} else if (line.startsWith("0")) {
-					radix = 010;
-					line = line.substring("0".length());
-				} else if (line.startsWith("b")) {
-					radix = 2;
-					line = line.substring("b".length());
-				}
-				
-				result = Long.parseLong(line, radix);
-				
-				if (isNegative) {
-					result = -result;
-				}
+				result = Long.decode(line);
 				
 				if (result < min) {
-					write(String.format(formattedTooLittle, result, min));
+					write(String.format(formattedTooSmall, result, min));
 					continue;
 				}
 				
 				if (result > max) {
-					write(String.format(formattedTooMuch, result, max));
+					write(String.format(formattedTooLarge, result, max));
 					continue;
 				}
 				
@@ -263,16 +251,16 @@ public class TextUI {
 		}
 	}
 	
-	public static Double readFPNumber(String prompt, String formattedNotANumber, boolean allowExit) {
+	public static Double readFPNumber(
+			String prompt,
+			String formattedNotANumber,
+			boolean allowExit
+	) {
 		String line = null;
 		
-		if (formattedNotANumber == null) {
-			formattedNotANumber = "\"%s\" is not a number";
-		}
+		if (formattedNotANumber == null) formattedNotANumber = "\"%s\" is not a number";
 		
-		if (prompt != null) {
-			write(prompt);
-		}
+		if (prompt != null) write(prompt);
 		
 		while (true) {
 			try {

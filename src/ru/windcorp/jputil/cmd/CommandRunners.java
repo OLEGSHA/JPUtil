@@ -20,6 +20,8 @@ import java.util.function.Consumer;
 
 public class CommandRunners {
 	
+	private CommandRunners() {}
+	
 	private static final CommandRunner CONSOLE_WRAPPER = new CommandRunner() {
 		/**
 		 * @see ru.windcorp.jputil.cmd.CommandRunner#getName()
@@ -53,6 +55,10 @@ public class CommandRunners {
 			return "Wrapper for CommandRunner console [" + console + "]";
 		}
 	};
+	
+	// SonarLint: Standard outputs should not be used directly to log anything (java:S106)
+	//   This is intended for debugging
+	@SuppressWarnings("squid:S106")
 	
 	private static CommandRunner console = new CommandRunner() {
 		/**
@@ -116,7 +122,7 @@ public class CommandRunners {
 			
 			@Override
 			public void complain(String msg) {
-				respond.accept(msg);
+				complain.accept(msg);
 			}
 		};
 	}

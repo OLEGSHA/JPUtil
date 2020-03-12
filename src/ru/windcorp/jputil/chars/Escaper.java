@@ -170,18 +170,26 @@ public class Escaper {
 			output.accept(safes[index]);
 		} else {
 			if (preferUnicode && !isRegular(c)) {
-				output.accept(escapeChar);
-				output.accept(unicodeEscapeChar);
-				output.accept(StringUtil.hexDigit(c >>= (4 * 3)));
-				output.accept(StringUtil.hexDigit(c >>= (4 * 2)));
-				output.accept(StringUtil.hexDigit(c >>= (4 * 1)));
-				output.accept(StringUtil.hexDigit(c >>  (4 * 0)));
+				escapeAsHex(c, output);
 			} else {
 				output.accept(c);
 			}
 		}
 	}
 	
+	// SonarLint: Assignments should not be made from within sub-expressions (java:S1121)
+	//   Seems self-evident enough
+	@SuppressWarnings("squid:S1121")
+	
+	private void escapeAsHex(char c, CharConsumer output) {
+		output.accept(escapeChar);
+		output.accept(unicodeEscapeChar);
+		output.accept(StringUtil.hexDigit(c >>= (4 * 3)));
+		output.accept(StringUtil.hexDigit(c >>= (4 * 2)));
+		output.accept(StringUtil.hexDigit(c >>= (4 * 1)));
+		output.accept(StringUtil.hexDigit(c >>  (4 * 0)));
+	}
+
 	public int getEscapedLength(CharReader src, int length, CharPredicate until) {
 		int end;
 		if (length < 0) end = Integer.MAX_VALUE;
@@ -284,10 +292,12 @@ public class Escaper {
 	}
 	
 	public void skipOneSequence(CharReader src) {
-		if (src.current() == escapeChar) {
-			if (src.next() == unicodeEscapeChar) {
-				src.advance(4);
-			}
+		if (
+				src.current() == escapeChar
+				&&
+				src.next() == unicodeEscapeChar
+		) {
+			src.advance(4);
 		}
 		src.next();
 	}
@@ -383,120 +393,29 @@ public class Escaper {
 	public char[] unescape(CharReader src) throws EscapeException {
 		return unescape(src, -1, (CharPredicate) null);
 	}
-	
-	
-//	public char[] unescape(CharacterIterator src, int length, char until) throws EscapeException {
-//		int end;
-//		if (length < 0) {
-//			end = src.getEndIndex();
-//		} else {
-//			end = src.getIndex() + length;
-//			if (end > src.getEndIndex()) 
-//				throw new IllegalArgumentException("length = " + length + ", " + (src.getEndIndex() - src.getIndex()) + " characters available");
-//		}
-//
-//		int start = src.getIndex();
-//		int resultLength = 0;
-//		
-//		while (src.getIndex() < end && src.current() != until) {
-//			skipOneSequence(src);
-//			src.next();
-//			resultLength++;
-//		}
-//		
-//		char[] result = new char[resultLength];
-//		int pos = 0;
-//		
-//		end = src.getIndex();
-//		src.setIndex(start);
-//
-//		while (src.getIndex() < end) {
-//			result[pos++] = unescapeOneSequence(src);
-//			src.next();
-//		}
-//		
-//		return result;
-//	}
-//	
-//	public char[] unescape(CharacterIterator src, int length) throws EscapeException {
-//		return unescape(src, length, CharacterIterator.DONE);
-//	}
-	
+
+	@Deprecated()
 	public char[] unescape(CharacterIterator src, char until) throws EscapeException {
 		return unescape(CharReaders.wrap(src), -1, CharPredicate.forChar(until));
 	}
-	
-//	public char[] unescape(CharacterIterator src) throws EscapeException {
-//		return unescape(src, -1);
-//	}
-//	
-//	public char[] unescape(char[] src) throws EscapeException {
-//		return unescape(new CharArrayIterator(src), src.length);
-//	}
-//	
-//	public char[] unescape(String src) throws EscapeException {
-//		return unescape(new CharArrayIterator(src), src.length());
-//	}
-//	
-//	public void skipOneSequence(CharacterIterator src) {
-//		if (src.current() == escapeChar) {
-//			if (src.next() == unicodeEscapeChar) {
-//				src.setIndex(src.getIndex() + 4);
-//			}
-//		}
-//	}
-//	
-//	public char unescapeOneSequence(CharacterIterator src) throws EscapeException {
-//		int rollbackIndex = src.getIndex();
-//		try {
-//			char c = src.current();
-//			if (c == escapeChar) {
-//				c = src.next();
-//				
-//				if (c == CharacterIterator.DONE)
-//					throw new EscapeException("Incomplete escape sequence at the end");
-//				
-//				if (c == escapeChar)
-//					return c;
-//				
-//				if (c == unicodeEscapeChar) {
-//					return (char) (
-//							hexValue(src.next()) << (4 * 3) |
-//							hexValue(src.next()) << (4 * 2) |
-//							hexValue(src.next()) << (4 * 1) |
-//							hexValue(src.next()) << (4 * 0)
-//					);
-//				}
-//				
-//				int index = ArrayUtil.firstIndexOf(safes, c);
-//				if (index >= 0)
-//					return unsafes[index];
-//				
-//				if (strict)
-//					throw new EscapeException("Unknown escape sequence \"" + escapeChar + c + "\"");
-//				else
-//					return c;
-//			} else
-//				return c;
-//		} catch (EscapeException | RuntimeException e) {
-//			src.setIndex(rollbackIndex);
-//			throw e;
-//		}
-//	}
 	
 	/*
 	 * Misc
 	 */
 	
 	private static int hexValue(char c) throws EscapeException {
-		if (c <  '0') throw new EscapeException("Invalid hex digit '" + c + "', expected [0-9A-Fa-f]");
+		if (c <  '0') throw thisIsNotAHexDigit(c);
 		if (c <= '9') return c - '0';
-		if (c <  'A') throw new EscapeException("Invalid hex digit '" + c + "', expected [0-9A-Fa-f]");
+		if (c <  'A') throw thisIsNotAHexDigit(c);
 		if (c <= 'F') return c - 'A';
-		if (c <  'a') throw new EscapeException("Invalid hex digit '" + c + "', expected [0-9A-Fa-f]");
+		if (c <  'a') throw thisIsNotAHexDigit(c);
 		if (c <= 'f') return c - 'a';
 		if (c == CharReader.DONE) throw new EscapeException("Incomplete Unicode escape sequence at the end");
-		throw new EscapeException("Invalid hex digit '" + c + "', expected [0-9A-Fa-f]");
+		throw thisIsNotAHexDigit(c);
+	}
+	
+	private static EscapeException thisIsNotAHexDigit(char c) {
+		return new EscapeException("Invalid hex digit '" + c + "', expected [0-9A-Fa-f]");
 	}
 
 	protected static boolean isRegular(char c) {

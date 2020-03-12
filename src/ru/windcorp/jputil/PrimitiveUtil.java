@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class PrimitiveUtil {
+	
+	private PrimitiveUtil() {}
 
 	private static final Map<Class<?>, Class<?>> PRIMITIVE_TO_BOXED = new HashMap<>();
 	private static final Map<Class<?>, Object> PRIMITIVE_TO_NULL = new HashMap<>();

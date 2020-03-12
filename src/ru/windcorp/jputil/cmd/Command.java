@@ -40,7 +40,7 @@ public abstract class Command {
 	private final String syntax;
 	private final String desc;
 	
-	private Function<CommandRunner, Supplier<? extends CommandExceptions>> runnerFilter = null;
+	private Function<CommandRunner, Supplier<CommandExceptions>> runnerFilter = null;
 	
 	protected Command(String[] names, String syntax, String desc) {
 		Objects.requireNonNull(names, "names cannot be null");
@@ -57,8 +57,8 @@ public abstract class Command {
 	
 	public abstract void run(Invocation inv) throws CommandExceptions;
 	
-	public Supplier<? extends CommandExceptions> canRun(CommandRunner runner) {
-		Function<CommandRunner, Supplier<? extends CommandExceptions>> filter = getRunnerFilter();
+	public Supplier<CommandExceptions> canRun(CommandRunner runner) {
+		Function<CommandRunner, Supplier<CommandExceptions>> filter = getRunnerFilter();
 		return filter == null ? null : filter.apply(runner);
 	}
 	
@@ -90,14 +90,14 @@ public abstract class Command {
 	/**
 	 * @return the runnerFilter
 	 */
-	public Function<CommandRunner, Supplier<? extends CommandExceptions>> getRunnerFilter() {
+	public Function<CommandRunner, Supplier<CommandExceptions>> getRunnerFilter() {
 		return runnerFilter;
 	}
 	
 	/**
 	 * @param runnerFilter the runnerFilter to set
 	 */
-	public Command setRunnerFilter(Function<CommandRunner, Supplier<? extends CommandExceptions>> runnerFilter) {
+	public Command setRunnerFilter(Function<CommandRunner, Supplier<CommandExceptions>> runnerFilter) {
 		this.runnerFilter = runnerFilter;
 		return this;
 	}

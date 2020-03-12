@@ -19,6 +19,8 @@ import java.math.BigInteger;
 import java.util.Objects;
 
 public class ArrayUtil {
+	
+	private ArrayUtil() {}
 
 	public static int firstIndexOf(byte[] array, byte element) {
 		for (int i = 0; i < array.length; ++i) {
@@ -30,7 +32,7 @@ public class ArrayUtil {
 	}
 	
 	public static int lastIndexOf(byte[] array, byte element) {
-		for (int i = array.length - 1; i >= 0; ++i) {
+		for (int i = array.length - 1; i >= 0; --i) {
 			if (array[i] == element) {
 				return i;
 			}
@@ -71,7 +73,7 @@ public class ArrayUtil {
 	}
 	
 	public static int lastIndexOf(short[] array, short element) {
-		for (int i = array.length - 1; i >= 0; ++i) {
+		for (int i = array.length - 1; i >= 0; --i) {
 			if (array[i] == element) {
 				return i;
 			}
@@ -112,7 +114,7 @@ public class ArrayUtil {
 	}
 	
 	public static int lastIndexOf(int[] array, int element) {
-		for (int i = array.length - 1; i >= 0; ++i) {
+		for (int i = array.length - 1; i >= 0; --i) {
 			if (array[i] == element) {
 				return i;
 			}
@@ -153,7 +155,7 @@ public class ArrayUtil {
 	}
 	
 	public static int lastIndexOf(long[] array, long element) {
-		for (int i = array.length - 1; i >= 0; ++i) {
+		for (int i = array.length - 1; i >= 0; --i) {
 			if (array[i] == element) {
 				return i;
 			}
@@ -194,7 +196,7 @@ public class ArrayUtil {
 	}
 	
 	public static int lastIndexOf(float[] array, float element) {
-		for (int i = array.length - 1; i >= 0; ++i) {
+		for (int i = array.length - 1; i >= 0; --i) {
 			if (array[i] == element) {
 				return i;
 			}
@@ -235,7 +237,7 @@ public class ArrayUtil {
 	}
 	
 	public static int lastIndexOf(double[] array, double element) {
-		for (int i = array.length - 1; i >= 0; ++i) {
+		for (int i = array.length - 1; i >= 0; --i) {
 			if (array[i] == element) {
 				return i;
 			}
@@ -276,7 +278,7 @@ public class ArrayUtil {
 	}
 	
 	public static int lastIndexOf(boolean[] array, boolean element) {
-		for (int i = array.length - 1; i >= 0; ++i) {
+		for (int i = array.length - 1; i >= 0; --i) {
 			if (array[i] == element) {
 				return i;
 			}
@@ -304,7 +306,7 @@ public class ArrayUtil {
 	}
 	
 	public static int lastIndexOf(char[] array, char element) {
-		for (int i = array.length - 1; i >= 0; ++i) {
+		for (int i = array.length - 1; i >= 0; --i) {
 			if (array[i] == element) {
 				return i;
 			}
@@ -345,7 +347,7 @@ public class ArrayUtil {
 	}
 	
 	public static int lastIndexOf(Object[] array, Object element) {
-		for (int i = array.length - 1; i >= 0; ++i) {
+		for (int i = array.length - 1; i >= 0; --i) {
 			if (array[i] == element) {
 				return i;
 			}
@@ -386,7 +388,7 @@ public class ArrayUtil {
 	}
 	
 	public static int lastIndexOfEqual(Object[] array, Object element) {
-		for (int i = array.length - 1; i >= 0; ++i) {
+		for (int i = array.length - 1; i >= 0; --i) {
 			if (Objects.equals(array[i], element)) {
 				return i;
 			}

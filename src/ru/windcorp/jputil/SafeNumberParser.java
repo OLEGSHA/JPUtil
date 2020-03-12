@@ -16,6 +16,8 @@ package ru.windcorp.jputil;
 
 public class SafeNumberParser {
 	
+	private SafeNumberParser() {}
+	
 	public static byte parseByte(String declar, byte def) {
 		try {
 			return Byte.parseByte(declar);

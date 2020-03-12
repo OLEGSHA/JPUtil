@@ -47,7 +47,7 @@ public class ParserTrailingString extends Parser implements NoBrackets {
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#getProblem(java.text.CharacterIterator, ru.windcorp.tge2.util.ncmd.Invocation)
 	 */
 	@Override
-	public Supplier<? extends Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
+	public Supplier<Exception> getProblem(CharacterIterator data, AutoInvocation inv) {
 		return null;
 	}
 
@@ -63,6 +63,11 @@ public class ParserTrailingString extends Parser implements NoBrackets {
 	/**
 	 * @see ru.windcorp.jputil.cmd.parsers.Parser#insertParsed(java.text.CharacterIterator, java.util.function.Consumer)
 	 */
+	
+	// SonarLint: Nested code blocks should not be used (java:S1199)
+	//   Simple enough. Did not want to pollute locals with c and i
+	@SuppressWarnings("squid:S1199")
+	
 	@Override
 	public void insertParsed(CharacterIterator data, AutoInvocation inv, Consumer<Object> output) {
 		skipWhitespace(data);

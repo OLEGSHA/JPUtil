@@ -43,6 +43,10 @@ public class PeekingIterator<E> implements Iterator<E> {
 		return next;
 	}
 
+	// SonarLint: "Iterator.next()" methods should throw "NoSuchElementException" (java:S2272)
+	//   peek() throws NoSuchElementException as expected
+	@SuppressWarnings("squid:S2272")
+	
 	@Override
 	public E next() {
 		E element = peek();

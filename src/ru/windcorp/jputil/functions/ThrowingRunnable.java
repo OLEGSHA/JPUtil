@@ -20,7 +20,10 @@ public interface ThrowingRunnable<E extends Exception> {
 		};
 	}
 	
-	public static <E extends Exception> ThrowingRunnable<E> concat(ThrowingRunnable<? extends E> first, ThrowingRunnable<? extends E> second) {
+	public static <E extends Exception> ThrowingRunnable<E> concat(
+			ThrowingRunnable<? extends E> first,
+			ThrowingRunnable<? extends E> second
+	) {
 		return () -> {
 			first.run();
 			second.run();

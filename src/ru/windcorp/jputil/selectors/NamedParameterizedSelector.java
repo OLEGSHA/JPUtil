@@ -39,12 +39,12 @@ public abstract class NamedParameterizedSelector<T> extends NamedSelector<T> {
 			return null;
 		}
 		
-		NamedParameterizedSelector<T> selector = derive_impl(parts[1]);
+		NamedParameterizedSelector<T> selector = deriveImpl(parts[1]);
 		selector.givenName = name;
 		return selector;
 	}
 
-	protected abstract NamedParameterizedSelector<T> derive_impl(String param) throws SyntaxException;
+	protected abstract NamedParameterizedSelector<T> deriveImpl(String param) throws SyntaxException;
 	
 	@Override
 	public String toString() {
