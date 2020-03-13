@@ -405,6 +405,18 @@ public class Escaper {
 		return result;
 	}
 	
+	public String escape(String src) {
+		StringBuilder result = new StringBuilder(src.length());
+		escape(CharReaders.wrap(src), (CharConsumer) result::append);
+		return result.toString();
+	}
+	
+	public String unescape(String src) throws EscapeException {
+		StringBuilder result = new StringBuilder(src.length());
+		unescape(CharReaders.wrap(src), (CharConsumer) result::append);
+		return result.toString();
+	}
+	
 	/*
 	 * Misc
 	 */
